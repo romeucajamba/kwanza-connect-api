@@ -1,21 +1,32 @@
+"""
+Signals do módulo offers.
+Corrigido: usa 'recipient' (não 'user') e NotificationService.
+"""
 from django.db.models.signals import post_save
 from django.dispatch import receiver
-from django.utils import timezone
-from .models import Offer, OfferInterest
-from notifications.models import Notification
+from .models import OfferInterest
 
 
 @receiver(post_save, sender=OfferInterest)
-def notify_owner_new_interest(sender, instance, created, **kwargs):
+def on_interest_created(sender, instance, created, **kwargs):
     """Notifica o dono da oferta quando alguém demonstra interesse."""
-    if created:
-        Notification.objects.create(
-            user=instance.offer.owner,
-            type='new_interest',
-            payload={
-                'offer_id':   str(instance.offer.id),
-                'buyer_id':   str(instance.buyer.id),
-                'buyer_name': instance.buyer.full_name,
-                'message':    instance.message,
-            }
+    if not created:
+        return
+    try:
+        from notifications.services.notification_service import NotificationService
+        from notifications.models import NotificationType
+        NotificationService.send(
+            recipient         = instance.offer.owner,
+            actor             = instance.buyer,
+            notification_type = NotificationType.NEW_INTEREST,
+            payload           = {
+                'offer_id':      str(instance.offer.id),
+                'interest_id':   str(instance.id),
+                'give_amount':   str(instance.offer.give_amount),
+                'give_currency': instance.offer.give_currency.code,
+                'want_currency': instance.offer.want_currency.code,
+                'redirect':      f'/offers/{instance.offer.id}/interests',
+            },
         )
+    except Exception:
+        pass  # Não falhar a operação principal por erro de notificação

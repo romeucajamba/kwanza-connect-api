@@ -1,13 +1,15 @@
 import json
 from channels.generic.websocket import AsyncWebsocketConsumer
 from channels.db import database_sync_to_async
+from django.utils import timezone
+from ...models import Notification
 
 
 class NotificationConsumer(AsyncWebsocketConsumer):
     """
     Canal pessoal de notificações.
-    Cada utilizador liga-se a:  ws/notifications/
-    e é colocado no grupo:      notifications_{user_id}
+    Cada utilizador liga-se a: ws/notifications/
+    e é colocado no grupo: notifications_{user_id}
     """
 
     async def connect(self):
@@ -33,7 +35,11 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             await self.channel_layer.group_discard(self.group_name, self.channel_name)
 
     async def receive(self, text_data):
-        data   = json.loads(text_data)
+        try:
+            data = json.loads(text_data)
+        except json.JSONDecodeError:
+            return
+
         action = data.get('action')
 
         if action == 'mark_read':
@@ -49,7 +55,7 @@ class NotificationConsumer(AsyncWebsocketConsumer):
                 'unread_count': unread,
             }))
 
-    # ── handler chamado pelo NotificationService ──
+    # ── handler chamado pelo NotificationService/Celery ──
 
     async def push_notification(self, event):
         """Recebe do group_send e reencaminha para o WebSocket do cliente."""
@@ -65,27 +71,22 @@ class NotificationConsumer(AsyncWebsocketConsumer):
             'unread_count': unread,
         }))
 
-    # ── helpers de base de dados ──
+    # ── helpers de base de dados (async safe) ──
 
     @database_sync_to_async
     def get_unread_count(self):
-        from .models import Notification
         return Notification.objects.filter(
             recipient=self.user, is_read=False
         ).count()
 
     @database_sync_to_async
     def mark_one_read(self, notification_id):
-        from .models import Notification
-        from django.utils import timezone
         Notification.objects.filter(
             id=notification_id, recipient=self.user
         ).update(is_read=True, read_at=timezone.now())
 
     @database_sync_to_async
     def mark_all_read(self):
-        from .models import Notification
-        from django.utils import timezone
         Notification.objects.filter(
             recipient=self.user, is_read=False
         ).update(is_read=True, read_at=timezone.now())

@@ -28,14 +28,14 @@ services:
 
   web:
     build: .
-    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
+    command: daphne -b 0.0.0.0 -p 8000 app.asgi:application
     volumes:
       - .:/app
       - static_volume:/app/staticfiles
       - media_volume:/app/media
     env_file: .env
     environment:
-      - DJANGO_SETTINGS_MODULE=config.settings.development
+      - DJANGO_SETTINGS_MODULE=app.settings
     depends_on:
       db:
         condition: service_healthy
@@ -45,12 +45,12 @@ services:
 
   celery:
     build: .
-    command: celery -A config worker --loglevel=info --concurrency=4
+    command: celery -A app worker --loglevel=info --concurrency=4
     volumes:
       - .:/app
     env_file: .env
     environment:
-      - DJANGO_SETTINGS_MODULE=config.settings.development
+      - DJANGO_SETTINGS_MODULE=app.settings
     depends_on:
       db:
         condition: service_healthy
@@ -60,7 +60,7 @@ services:
 
   celery-beat:
     build: .
-    command: celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    command: celery -A app beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
     volumes:
       - .:/app
     env_file: .env

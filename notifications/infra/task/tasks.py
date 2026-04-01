@@ -1,20 +1,20 @@
 from celery import shared_task
 from django.core.mail import send_mail
 from django.conf import settings
+from ...models import Notification, NotificationPreference, PushDevice
 
 
 @shared_task(bind=True, max_retries=3, default_retry_delay=60)
 def send_notification_email(self, notification_id: str):
     """Envia notificação por email se o utilizador tiver email activo."""
-    from .models import Notification, NotificationPreference
-
     try:
         notif = Notification.objects.select_related(
-            'recipient', 'actor'
+            'recipient', 'actor', 'recipient__security'
         ).get(id=notification_id)
     except Notification.DoesNotExist:
         return
 
+    # Check preferences
     prefs, _ = NotificationPreference.objects.get_or_create(user=notif.recipient)
     if prefs.channel not in ('email',) or not notif.recipient.security.email_verified:
         return
@@ -39,8 +39,6 @@ def send_push_notification(self, notification_id: str):
     Envia push notification para os dispositivos registados.
     Implementar com firebase-admin quando o FCM estiver configurado.
     """
-    from .models import Notification, PushDevice
-
     try:
         notif = Notification.objects.select_related('recipient').get(id=notification_id)
     except Notification.DoesNotExist:

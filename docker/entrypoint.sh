@@ -22,9 +22,9 @@ from django.contrib.auth import get_user_model
 User = get_user_model()
 if not User.objects.filter(email='$DJANGO_SUPERUSER_EMAIL').exists():
     User.objects.create_superuser(
-        username='admin',
         email='$DJANGO_SUPERUSER_EMAIL',
-        password='$DJANGO_SUPERUSER_PASSWORD'
+        password='$DJANGO_SUPERUSER_PASSWORD',
+        full_name='Admin'
     )
     print('Superuser criado.')
 else:

@@ -5,6 +5,7 @@ from .models import User, IdentityDocument, UserSecurity, UserReport
 
 class IdentityInline(admin.StackedInline):
     model = IdentityDocument
+    fk_name = 'user'
     extra = 0
     readonly_fields = ['submitted_at', 'reviewed_at']
 
