@@ -1,5 +1,6 @@
 import uuid
 from ..services.use_cases import IChatService, INotificationService
+from app.services.websocket_service import ChannelsWebSocketService
 
 class DjangoChatService(IChatService):
     def create_offer_room(self, offer_id: uuid.UUID, owner_id: uuid.UUID, buyer_id: uuid.UUID) -> uuid.UUID:
@@ -22,6 +23,9 @@ class DjangoChatService(IChatService):
         return room.id
 
 class DjangoNotificationService(INotificationService):
+    def __init__(self):
+        self.ws_service = ChannelsWebSocketService()
+
     def notify_interest_accepted(self, buyer_id: uuid.UUID, offer_id: uuid.UUID, room_id: uuid.UUID) -> None:
         from notifications.models import Notification
         Notification.objects.create(
@@ -33,6 +37,7 @@ class DjangoNotificationService(INotificationService):
                 'message':  'O seu interesse foi aceite.',
             }
         )
+        self.ws_service.send_to_user(str(buyer_id), "new_notification", {"type": "interest_accepted"})
 
     def notify_interest_rejected(self, buyer_id: uuid.UUID, offer_id: uuid.UUID) -> None:
         from notifications.models import Notification
@@ -44,3 +49,4 @@ class DjangoNotificationService(INotificationService):
                 'message':  'O seu interesse foi rejeitado.',
             }
         )
+        self.ws_service.send_to_user(str(buyer_id), "new_notification", {"type": "interest_rejected"})

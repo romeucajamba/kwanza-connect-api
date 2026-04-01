@@ -25,7 +25,8 @@ class DjangoChatRepository(IChatRepository):
             room_type=django_room.room_type,
             status=django_room.status,
             created_at=django_room.created_at,
-            closed_at=django_room.closed_at
+            closed_at=django_room.closed_at,
+            other_user=getattr(django_room, 'other_user_data', None)
         )
 
     def _member_to_entity(self, django_member: DjangoRoomMember) -> RoomMemberEntity:
@@ -74,8 +75,21 @@ class DjangoChatRepository(IChatRepository):
             return None
 
     def list_user_rooms(self, user_id: uuid.UUID) -> List[RoomEntity]:
+        # Busca todas as salas do utilizador
         rooms = DjangoRoom.objects.filter(members__user_id=user_id).select_related('offer')
-        return [self._room_to_entity(r) for r in rooms]
+        
+        entities = []
+        for r in rooms:
+            # Identifica o outro membro
+            other_member = DjangoRoomMember.objects.filter(room=r).exclude(user_id=user_id).select_related('user').first()
+            if other_member and other_member.user:
+                r.other_user_data = {
+                    "id": str(other_member.user.id),
+                    "full_name": other_member.user.full_name,
+                    "avatar": other_member.user.avatar.url if other_member.user.avatar else None,
+                }
+            entities.append(self._room_to_entity(r))
+        return entities
 
     def save_member(self, member: RoomMemberEntity) -> RoomMemberEntity:
         django_member, created = DjangoRoomMember.objects.update_or_create(

@@ -9,6 +9,7 @@ from rest_framework.exceptions import ValidationError, NotFound, PermissionDenie
 
 from ..domain.entities import RoomEntity, RoomMemberEntity, MessageEntity
 from ..domain.interfaces import IChatRepository
+from app.services.websocket_service import IWebSocketService
 
 class GetUserRoomsUseCase:
     def __init__(self, repository: IChatRepository):
@@ -30,8 +31,9 @@ class GetRoomMessagesUseCase:
         return self.repository.list_room_messages(room_id, limit, before)
 
 class SendMessageUseCase:
-    def __init__(self, repository: IChatRepository):
+    def __init__(self, repository: IChatRepository, ws_service: IWebSocketService = None):
         self.repository = repository
+        self.ws_service = ws_service
 
     def execute(self, user_id: uuid.UUID, room_id: uuid.UUID, data: dict) -> MessageEntity:
         room = self.repository.get_room_by_id(room_id)
@@ -54,7 +56,23 @@ class SendMessageUseCase:
             msg_type=data.get('msg_type', 'text'),
             reply_to_id=data.get('reply_to_id'),
         )
-        return self.repository.save_message(message)
+        saved_msg = self.repository.save_message(message)
+        
+        # Notificação em Tempo Real
+        if self.ws_service:
+            self.ws_service.send_to_room(
+                room_id=str(room_id),
+                event_type="new_message",
+                payload={
+                    "id": str(saved_msg.id),
+                    "sender_id": str(user_id),
+                    "content": saved_msg.content,
+                    "msg_type": saved_msg.msg_type,
+                    "created_at": saved_msg.created_at.isoformat() if saved_msg.created_at else None
+                }
+            )
+            
+        return saved_msg
 
 class DeleteMessageUseCase:
     def __init__(self, repository: IChatRepository):
@@ -74,8 +92,9 @@ class DeleteMessageUseCase:
         self.repository.save_message(message)
 
 class MarkRoomAsReadUseCase:
-    def __init__(self, repository: IChatRepository):
+    def __init__(self, repository: IChatRepository, ws_service: IWebSocketService = None):
         self.repository = repository
+        self.ws_service = ws_service
 
     def execute(self, user_id: uuid.UUID, room_id: uuid.UUID) -> None:
         member = self.repository.get_member_by_room_and_user(room_id, user_id)
@@ -84,3 +103,10 @@ class MarkRoomAsReadUseCase:
         
         member.last_read_at = datetime.now()
         self.repository.save_member(member)
+        
+        if self.ws_service:
+            self.ws_service.send_to_user(
+                user_id=str(user_id),
+                event_type="room_read",
+                payload={"room_id": str(room_id)}
+            )
