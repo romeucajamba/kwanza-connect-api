@@ -1,0 +1,43 @@
+import pytest
+import uuid
+from unittest.mock import Mock
+from users.services.use_cases import RegisterUserUseCase
+from users.domain.entities import UserEntity
+from users.domain.interfaces import IUserRepository
+
+def test_register_user_success():
+    # Arrange
+    mock_repo = Mock(spec=IUserRepository)
+    mock_repo.exists_by_email.return_value = False
+    
+    def side_effect_save(user):
+        return user
+    mock_repo.save.side_effect = side_effect_save
+    mock_repo.get_security_by_user_id.return_value = None
+    
+    use_case = RegisterUserUseCase(repository=mock_repo)
+    email = "test@example.com"
+    password = "password123"
+    full_name = "Test User"
+    
+    # Act
+    result = use_case.execute(email=email, password=password, full_name=full_name)
+    
+    # Assert
+    assert result['email'] == email
+    assert 'id' in result
+    mock_repo.exists_by_email.assert_called_once_with(email)
+    mock_repo.save.assert_called_once()
+    mock_repo.update_security.assert_called_once()
+
+def test_register_user_already_exists():
+    # Arrange
+    mock_repo = Mock(spec=IUserRepository)
+    mock_repo.exists_by_email.return_value = True
+    
+    use_case = RegisterUserUseCase(repository=mock_repo)
+    
+    # Act & Assert
+    from rest_framework.exceptions import ValidationError
+    with pytest.raises(ValidationError):
+        use_case.execute(email="existing@example.com", password="pwd", full_name="Name")

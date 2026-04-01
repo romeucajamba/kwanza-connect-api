@@ -8,6 +8,7 @@ from rest_framework.parsers import MultiPartParser, FormParser, JSONParser
 from rest_framework.permissions import IsAuthenticated, AllowAny
 from rest_framework_simplejwt.tokens import RefreshToken
 from drf_spectacular.utils import extend_schema, OpenApiParameter
+import uuid
 
 from app.exceptions import success_response, created_response
 from app.permissions import IsSelf
@@ -22,6 +23,7 @@ from ..services.use_cases import (
     ChangePasswordUseCase, ForgotPasswordUseCase, ResetPasswordUseCase,
     UpdateProfileUseCase, SubmitKYCUseCase,
 )
+from ..infra.repositories import DjangoUserRepository
 from ..models import User
 
 
@@ -34,9 +36,10 @@ class RegisterView(APIView):
 
     @extend_schema(request=RegisterSerializer, tags=['Autenticação'])
     def post(self, request):
+        repo = DjangoUserRepository()
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        result = RegisterUserUseCase().execute(**serializer.validated_data)
+        result = RegisterUserUseCase(repo).execute(**serializer.validated_data)
         return created_response(data=result, message='Conta criada com sucesso. Verifique o seu email.')
 
 
@@ -45,9 +48,10 @@ class LoginView(APIView):
 
     @extend_schema(request=LoginSerializer, tags=['Autenticação'])
     def post(self, request):
+        repo = DjangoUserRepository()
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        tokens = LoginUseCase().execute(
+        tokens = LoginUseCase(repo).execute(
             email=serializer.validated_data['email'],
             password=serializer.validated_data['password'],
         )
@@ -76,7 +80,8 @@ class VerifyEmailView(APIView):
 
     @extend_schema(tags=['Autenticação'])
     def get(self, request, token: str):
-        VerifyEmailUseCase().execute(token=token)
+        repo = DjangoUserRepository()
+        VerifyEmailUseCase(repo).execute(token=token)
         return success_response(message='Email verificado com sucesso. Já pode fazer login.')
 
 
@@ -85,9 +90,10 @@ class ForgotPasswordView(APIView):
 
     @extend_schema(request=ForgotPasswordSerializer, tags=['Autenticação'])
     def post(self, request):
+        repo = DjangoUserRepository()
         serializer = ForgotPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        ForgotPasswordUseCase().execute(email=serializer.validated_data['email'])
+        ForgotPasswordUseCase(repo).execute(email=serializer.validated_data['email'])
         return success_response(
             message='Se o email existir na plataforma, receberá um link de reset em breve.'
         )
@@ -98,9 +104,10 @@ class ResetPasswordView(APIView):
 
     @extend_schema(request=ResetPasswordSerializer, tags=['Autenticação'])
     def post(self, request):
+        repo = DjangoUserRepository()
         serializer = ResetPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        ResetPasswordUseCase().execute(
+        ResetPasswordUseCase(repo).execute(
             token=serializer.validated_data['token'],
             new_password=serializer.validated_data['new_password'],
         )
@@ -122,9 +129,10 @@ class MeView(APIView):
 
     @extend_schema(request=UpdateProfileSerializer, tags=['Perfil'])
     def patch(self, request):
+        repo = DjangoUserRepository()
         serializer = UpdateProfileSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        UpdateProfileUseCase().execute(user=request.user, **serializer.validated_data)
+        UpdateProfileUseCase(repo).execute(user_id=request.user.id, **serializer.validated_data)
         return success_response(
             data=UserProfileSerializer(request.user).data,
             message='Perfil actualizado com sucesso.'
@@ -136,10 +144,11 @@ class ChangePasswordView(APIView):
 
     @extend_schema(request=ChangePasswordSerializer, tags=['Perfil'])
     def post(self, request):
+        repo = DjangoUserRepository()
         serializer = ChangePasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        ChangePasswordUseCase().execute(
-            user=request.user,
+        ChangePasswordUseCase(repo).execute(
+            user_id=request.user.id,
             current_password=serializer.validated_data['current_password'],
             new_password=serializer.validated_data['new_password'],
         )
@@ -151,12 +160,15 @@ class PublicProfileView(APIView):
 
     @extend_schema(tags=['Perfil'])
     def get(self, request, user_id: str):
-        try:
-            user = User.objects.get(id=user_id, is_active=True)
-        except User.DoesNotExist:
+        repo = DjangoUserRepository()
+        user_entity = repo.get_by_id(uuid.UUID(user_id))
+        if not user_entity or not user_entity.is_active:
             from rest_framework.exceptions import NotFound
             raise NotFound('Utilizador não encontrado.')
-        serializer = PublicUserSerializer(user)
+        
+        # O Serializer do DRF ainda espera um Model ou um objeto com os mesmos atributos.
+        # Como as nossas entidades têm os mesmos nomes de atributos, deve funcionar.
+        serializer = PublicUserSerializer(user_entity)
         return success_response(data=serializer.data)
 
 
@@ -170,9 +182,10 @@ class KYCSubmitView(APIView):
 
     @extend_schema(request=IdentityDocumentSerializer, tags=['KYC'])
     def post(self, request):
+        repo = DjangoUserRepository()
         serializer = IdentityDocumentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        SubmitKYCUseCase().execute(user=request.user, doc_data=serializer.validated_data)
+        SubmitKYCUseCase(repo).execute(user_id=request.user.id, doc_data=serializer.validated_data)
         return success_response(message='Documentos enviados. A análise demora até 48 horas.')
 
 
