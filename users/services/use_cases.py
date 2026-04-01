@@ -1,0 +1,206 @@
+"""
+Use cases do módulo users.
+Orquestra repositórios e lógica de negócio operando sobre Entidades.
+"""
+import secrets
+import hashlib
+import uuid
+from datetime import timedelta
+from typing import Optional, Dict, Any
+
+# Nota: As exceções ainda podem ser as do DRF para facilitar o Controller, 
+# mas em uma arquitetura 100% pura, usaríamos exceções de domínio e converteríamos no controller.
+from rest_framework.exceptions import AuthenticationFailed, ValidationError, NotFound
+
+from ..domain.entities import UserEntity, UserSecurityEntity, IdentityDocumentEntity
+from ..domain.interfaces import IUserRepository
+
+class RegisterUserUseCase:
+    def __init__(self, repository: IUserRepository):
+        self.repository = repository
+
+    def execute(self, email: str, password: str, full_name: str, **kwargs) -> dict:
+        if self.repository.exists_by_email(email):
+            raise ValidationError({'email': 'Este email já está registado.'})
+
+        # Criação da entidade
+        user_id = uuid.uuid4()
+        user = UserEntity(
+            id=user_id,
+            email=email,
+            full_name=full_name,
+            **kwargs
+        )
+        
+        # O hashing de senha deve ser tratado ou pelo repositório ou por um serviço de segurança.
+        # Aqui, como estamos no Django, o ideal é que o repositório use create_user do Manager
+        # ou que passemos um PasswordHasher injetado.
+        
+        # Salvamento inicial (o repositório cuidará de criar o registro no banco)
+        user = self.repository.save(user)
+        
+        # Lógica de segurança (Segurança de Email)
+        security = self.repository.get_security_by_user_id(user.id)
+        if not security:
+             security = UserSecurityEntity(id=uuid.uuid4(), user_id=user.id)
+        
+        token = secrets.token_urlsafe(32)
+        security.email_token = hashlib.sha256(token.encode()).hexdigest()
+        self.repository.update_security(security)
+
+        return {
+            'id': str(user.id),
+            'email': user.email,
+            'message': 'Conta criada. Verifique o seu email para activar a conta.',
+        }
+
+class LoginUseCase:
+    def __init__(self, repository: IUserRepository, auth_service=None):
+        self.repository = repository
+        self.auth_service = auth_service # TODO: Interface para autenticação
+
+    def execute(self, email: str, password: str) -> dict:
+        user = self.repository.get_by_email(email)
+        if not user:
+            raise AuthenticationFailed('Credenciais inválidas.')
+
+        security = self.repository.get_security_by_user_id(user.id)
+        if security and security.is_locked():
+            raise AuthenticationFailed(
+                'Conta bloqueada por excesso de tentativas. Tente novamente em 15 minutos.'
+            )
+
+        if not user.is_active:
+            raise AuthenticationFailed('Conta não activada. Verifique o seu email.')
+
+        # Aqui ainda dependemos do Django authenticate ou de um serviço injetado
+        from django.contrib.auth import authenticate
+        django_user = authenticate(username=email, password=password)
+        
+        if not django_user:
+            if security:
+                # O repositório ou a lógica de domínio deve incrementar falhas
+                # Por simplicidade aqui faremos via manual, mas Clean Code sugere método na entidade
+                security.failed_login_attempts += 1
+                if security.failed_login_attempts >= 5:
+                    from datetime import datetime, timedelta
+                    security.locked_until = datetime.now() + timedelta(minutes=15)
+                self.repository.update_security(security)
+                
+            raise AuthenticationFailed('Credenciais inválidas.')
+
+        # Reset falhas ao sucesso
+        if security:
+            security.failed_login_attempts = 0
+            security.locked_until = None
+            self.repository.update_security(security)
+
+        # Atualiza atividade
+        user.update_last_seen()
+        self.repository.save(user)
+
+        # Geração de tokens (Ainda dependente do SimpleJWT/Django no momento)
+        from rest_framework_simplejwt.tokens import RefreshToken
+        refresh = RefreshToken.for_user(django_user)
+        return {
+            'access': str(refresh.access_token),
+            'refresh': str(refresh),
+        }
+
+class VerifyEmailUseCase:
+    def __init__(self, repository: IUserRepository):
+        self.repository = repository
+
+    def execute(self, token: str) -> None:
+        hashed = hashlib.sha256(token.encode()).hexdigest()
+        security = self.repository.get_security_by_email_token(hashed)
+        
+        if not security:
+            raise ValidationError('Token de verificação inválido ou já utilizado.')
+
+        if security.email_verified:
+            raise ValidationError('O email já foi verificado.')
+
+        from django.utils import timezone
+        security.email_verified = True
+        security.email_token = ''
+        security.email_verified_at = timezone.now()
+        self.repository.update_security(security)
+
+        user = self.repository.get_by_id(security.user_id)
+        if user:
+            user.is_active = True
+            self.repository.save(user)
+
+class ChangePasswordUseCase:
+    def __init__(self, repository: IUserRepository):
+        self.repository = repository
+
+    def execute(self, user_id: uuid.UUID, current_password: str, new_password: str) -> None:
+        # Precisamos do model do Django para check_password / set_password
+        # Numa arquitetura pura, o PasswordHasher seria injetado.
+        from ..models import User
+        django_user = User.objects.get(id=user_id)
+        
+        if not django_user.check_password(current_password):
+            raise ValidationError({'current_password': 'Senha actual incorrecta.'})
+        if current_password == new_password:
+            raise ValidationError({'new_password': 'A nova senha deve ser diferente da actual.'})
+            
+        django_user.set_password(new_password)
+        django_user.save(update_fields=['password'])
+
+        security = self.repository.get_security_by_user_id(user_id)
+        if security:
+            from django.utils import timezone
+            security.password_changed_at = timezone.now()
+            self.repository.update_security(security)
+
+class UpdateProfileUseCase:
+    def __init__(self, repository: IUserRepository):
+        self.repository = repository
+
+    def execute(self, user_id: uuid.UUID, **fields) -> UserEntity:
+        user = self.repository.get_by_id(user_id)
+        if not user:
+            raise NotFound('Utilizador não encontrado.')
+            
+        allowed = {
+            'full_name', 'phone', 'city', 'address', 'occupation',
+            'bio', 'avatar', 'preferred_give_currency',
+            'preferred_want_currency', 'is_available',
+        }
+        update = {k: v for k, v in fields.items() if k in allowed}
+        for attr, val in update.items():
+            setattr(user, attr, val)
+            
+        return self.repository.save(user)
+
+class SubmitKYCUseCase:
+    def __init__(self, repository: IUserRepository):
+        self.repository = repository
+
+    def execute(self, user_id: uuid.UUID, doc_data: dict) -> None:
+        user = self.repository.get_by_id(user_id)
+        if not user:
+            raise NotFound('Utilizador não encontrado.')
+            
+        if user.is_kyc_complete():
+            raise ValidationError('Os documentos já foram aprovados.')
+
+        # Criação/Atualização da entidade de documento
+        existing_doc = self.repository.get_kyc_document_by_user_id(user_id)
+        if existing_doc:
+            for k, v in doc_data.items():
+                setattr(existing_doc, k, v)
+            self.repository.save_kyc_document(existing_doc)
+        else:
+            new_doc = IdentityDocumentEntity(
+                id=uuid.uuid4(),
+                user_id=user_id,
+                **doc_data
+            )
+            self.repository.save_kyc_document(new_doc)
+
+        user.verification_status = 'submitted'
+        self.repository.save(user)

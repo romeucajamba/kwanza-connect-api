@@ -1,25 +1,17 @@
 from asgiref.sync import async_to_sync
 from channels.layers import get_channel_layer
 from django.utils import timezone
-
-from .models import Notification, NotificationPreference, NotificationType
-from .tasks  import send_notification_email, send_push_notification
+from ..models import Notification, NotificationPreference, NotificationType
+from ..infra.task.tasks import send_notification_email, send_push_notification
 
 
 class NotificationService:
     """
     Ponto único de criação e entrega de notificações.
-
-    Uso:
-        NotificationService.send(
-            recipient = user,
-            actor     = outro_user,
-            type      = NotificationType.NEW_INTEREST,
-            payload   = {'offer_id': '...', 'redirect': '/offers/123'},
-        )
+    Centraliza a lógica de templates, verificação de preferências e despacho para múltiplos canais.
     """
 
-    # Textos centralizados por tipo
+    # Textos centralizados por tipo de notificação
     TEMPLATES = {
         NotificationType.NEW_INTEREST: {
             'title': 'Novo interesse na tua oferta',
@@ -80,19 +72,17 @@ class NotificationService:
         actor=None,
     ) -> Notification | None:
         """
-        Cria a notificação e entrega-a por todos os canais activos.
-        Devolve o objecto Notification ou None se o utilizador
-        tiver o tipo desactivado nas preferências.
+        Cria a notificação e entrega-a por todos os canais activos (WS, Email, Push).
         """
         payload = payload or {}
 
-        # Verifica preferências do utilizador
+        # 1. Verifica preferências do utilizador
         prefs, _ = NotificationPreference.objects.get_or_create(user=recipient)
         pref_key = notification_type.replace('-', '_')
         if not prefs.allows(pref_key):
             return None
 
-        # Constrói título e corpo usando o template
+        # 2. Constrói título e corpo usando o template
         template = cls.TEMPLATES.get(notification_type, {
             'title': 'Notificação',
             'body':  '',
@@ -105,7 +95,7 @@ class NotificationService:
         title = cls._fmt(template['title'], fmt_ctx)
         body  = cls._fmt(template['body'],  fmt_ctx)
 
-        # Persiste na base de dados
+        # 3. Persiste na base de dados
         notification = Notification.objects.create(
             recipient = recipient,
             actor     = actor,
@@ -115,31 +105,25 @@ class NotificationService:
             payload   = payload,
         )
 
-        # Entrega em tempo real via WebSocket
+        # 4. Entrega em tempo real via WebSocket
         cls._send_websocket(notification)
 
-        # Email e push via Celery (assíncrono, não bloqueia)
+        # 5. Entrega assíncrona para canais lentos (Email, Push) via Celery
         send_notification_email.delay(str(notification.id))
         send_push_notification.delay(str(notification.id))
 
         return notification
 
-    # ── helpers ──────────────────────────────
-
     @staticmethod
     def _fmt(template: str, ctx: dict) -> str:
         try:
             return template.format(**ctx)
-        except KeyError:
+        except (KeyError, ValueError):
             return template
 
     @staticmethod
     def _send_websocket(notification: Notification):
-        """
-        Envia a notificação para o canal WebSocket do utilizador.
-        Cada utilizador autenticado tem um grupo próprio:
-        'notifications_{user_id}'
-        """
+        """Envia a notificação para o grupo WebSocket do utilizador."""
         channel_layer = get_channel_layer()
         group_name    = f'notifications_{notification.recipient_id}'
 
@@ -154,7 +138,7 @@ class NotificationService:
             notification.is_sent_ws = True
             notification.save(update_fields=['is_sent_ws'])
         except Exception:
-            pass  # falha silenciosa — o utilizador verá ao abrir a app
+            pass  # Falha silenciosa: utilizador verá ao atualizar a lista ou reload
 
     @classmethod
     def mark_all_read(cls, user):
