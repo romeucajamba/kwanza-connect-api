@@ -1,10 +1,11 @@
 from rest_framework import permissions
-from .models import APIKey
-
+from .infra.repositories import DjangoSecurityRepository
+from .services.use_cases import VerifyAPIKeyUseCase
 
 class HasAPIKey(permissions.BasePermission):
     """
     Permissão que exige a chave de API no header X-API-KEY.
+    Refatorado para usar Clean Architecture (Use Cases).
     """
     message = "Acesso negado. Chave de API inválida ou em falta no header X-API-KEY."
 
@@ -13,10 +14,6 @@ class HasAPIKey(permissions.BasePermission):
         if not raw_key:
             return False
         
-        # O formato da chave é: kc_prefix.secret
-        try:
-            prefix = raw_key.split('.')[0].replace('kc_', '')
-            key_obj = APIKey.objects.get(prefix=prefix, is_active=True)
-            return key_obj.verify(raw_key)
-        except (APIKey.DoesNotExist, IndexError, ValueError):
-            return False
+        repo = DjangoSecurityRepository()
+        use_case = VerifyAPIKeyUseCase(repo)
+        return use_case.execute(raw_key)

@@ -1,38 +1,61 @@
 """
 Use cases do módulo de notificações.
+Orquestra repositórios e lógica de negócio operando sobre Entidades.
 """
+import uuid
+from typing import List, Optional
+from datetime import datetime
 from rest_framework.exceptions import ValidationError, NotFound, PermissionDenied
-from django.utils import timezone
-from ..models import Notification, NotificationPreference
 
+from ..domain.entities import NotificationEntity, NotificationPreferenceEntity
+from ..domain.interfaces import INotificationRepository
 
 class GetUserNotificationsUseCase:
-    """Lista as notificações de um utilizador."""
-    def execute(self, user, limit: int = 50, offset: int = 0):
-        return Notification.objects.filter(recipient=user).select_related('actor').order_by('-created_at')[offset:offset+limit]
+    def __init__(self, repository: INotificationRepository):
+        self.repository = repository
 
+    def execute(self, user_id: uuid.UUID, limit: int = 50, only_unread: bool = False) -> List[NotificationEntity]:
+        return self.repository.list_user_notifications(user_id, limit, only_unread)
 
 class MarkNotificationReadUseCase:
-    """Marca uma ou todas as notificações como lidas."""
-    def execute(self, user, notification_id: str = None):
-        if notification_id:
-            try:
-                notif = Notification.objects.get(id=notification_id, recipient=user)
-                notif.mark_as_read()
-            except Notification.DoesNotExist:
-                raise NotFound('Notificação não encontrada.')
-        else:
-            Notification.objects.filter(recipient=user, is_read=False).update(
-                is_read=True, read_at=timezone.now()
-            )
+    def __init__(self, repository: INotificationRepository):
+        self.repository = repository
 
+    def execute(self, user_id: uuid.UUID, notification_id: Optional[uuid.UUID] = None) -> None:
+        if notification_id:
+            notif = self.repository.get_notification_by_id(notification_id)
+            if not notif or notif.recipient_id != user_id:
+                raise NotFound('Notificação não encontrada.')
+            
+            notif.is_read = True
+            notif.read_at = datetime.now()
+            self.repository.save_notification(notif)
+        else:
+            self.repository.mark_all_as_read(user_id)
 
 class UpdateNotificationPreferencesUseCase:
-    """Actualiza as preferências de notificação do utilizador."""
-    def execute(self, user, data: dict) -> NotificationPreference:
-        prefs, _ = NotificationPreference.objects.get_or_create(user=user)
-        for attr, val in data.items():
-            if hasattr(prefs, attr):
-                setattr(prefs, attr, val)
-        prefs.save()
+    def __init__(self, repository: INotificationRepository):
+        self.repository = repository
+
+    def execute(self, user_id: uuid.UUID, data: dict) -> NotificationPreferenceEntity:
+        prefs = self.repository.get_preference_by_user(user_id)
+        if not prefs:
+            prefs = NotificationPreferenceEntity(id=uuid.uuid4(), user_id=user_id)
+        
+        # Actualiza campos dinamicamente
+        for field, value in data.items():
+            if hasattr(prefs, field):
+                setattr(prefs, field, value)
+        
+        return self.repository.save_preference(prefs)
+
+class GetNotificationPreferencesUseCase:
+    def __init__(self, repository: INotificationRepository):
+        self.repository = repository
+
+    def execute(self, user_id: uuid.UUID) -> NotificationPreferenceEntity:
+        prefs = self.repository.get_preference_by_user(user_id)
+        if not prefs:
+            prefs = NotificationPreferenceEntity(id=uuid.uuid4(), user_id=user_id)
+            return self.repository.save_preference(prefs)
         return prefs

@@ -1,72 +1,86 @@
 """
 Use cases do módulo chat.
+Orquestra repositórios e lógica de negócio operando sobre Entidades.
 """
+import uuid
+from typing import List, Optional
+from datetime import datetime
 from rest_framework.exceptions import ValidationError, NotFound, PermissionDenied
-from django.db.models import Q
-from ..models import Room, Message, RoomMember
 
+from ..domain.entities import RoomEntity, RoomMemberEntity, MessageEntity
+from ..domain.interfaces import IChatRepository
 
 class GetUserRoomsUseCase:
-    """Lista as salas que o utilizador pertence."""
-    def execute(self, user):
-        return Room.objects.filter(
-            members__user=user
-        ).select_related('offer', 'offer__give_currency', 'offer__want_currency')\
-         .prefetch_related('members__user')\
-         .order_by('-created_at')
+    def __init__(self, repository: IChatRepository):
+        self.repository = repository
 
+    def execute(self, user_id: uuid.UUID) -> List[RoomEntity]:
+        return self.repository.list_user_rooms(user_id)
 
 class GetRoomMessagesUseCase:
-    """Obtém mensagens de uma sala com paginação."""
-    def execute(self, user, room_id: str, limit: int = 50, offset: int = 0):
-        try:
-            room = Room.objects.get(id=room_id)
-        except Room.DoesNotExist:
-            raise NotFound('Sala não encontrada.')
+    def __init__(self, repository: IChatRepository):
+        self.repository = repository
 
+    def execute(self, user_id: uuid.UUID, room_id: uuid.UUID, limit: int = 50, before: Optional[uuid.UUID] = None) -> List[MessageEntity]:
         # Valida se o utilizador é membro
-        if not room.members.filter(user=user).exists():
+        member = self.repository.get_member_by_room_and_user(room_id, user_id)
+        if not member:
             raise PermissionDenied('Não tem permissão para aceder a esta conversa.')
 
-        messages = Message.objects.filter(room=room).select_related('sender').order_by('-created_at')[offset:offset+limit]
-        return reversed(list(messages))
-
+        return self.repository.list_room_messages(room_id, limit, before)
 
 class SendMessageUseCase:
-    """Envia uma mensagem para uma sala."""
-    def execute(self, user, room_id: str, data: dict) -> Message:
-        try:
-            room = Room.objects.get(id=room_id)
-        except Room.DoesNotExist:
+    def __init__(self, repository: IChatRepository):
+        self.repository = repository
+
+    def execute(self, user_id: uuid.UUID, room_id: uuid.UUID, data: dict) -> MessageEntity:
+        room = self.repository.get_room_by_id(room_id)
+        if not room:
             raise NotFound('Sala não encontrada.')
 
         # Valida se o utilizador é membro
-        if not room.members.filter(user=user).exists():
-            raise PermissionDenied('Não tem permissão para enviar mensagens para esta porta.')
+        member = self.repository.get_member_by_room_and_user(room_id, user_id)
+        if not member:
+            raise PermissionDenied('Não tem permissão para enviar mensagens nesta sala.')
 
-        if room.status != 'active':
+        if not room.is_active():
             raise ValidationError('Esta conversa está encerrada.')
 
-        message = Message.objects.create(
-            room=room,
-            sender=user,
+        message = MessageEntity(
+            id=uuid.uuid4(),
+            room_id=room_id,
+            sender_id=user_id,
             content=data.get('content', ''),
             msg_type=data.get('msg_type', 'text'),
-            file=data.get('file'),
-            reply_to=data.get('reply_to'),
+            reply_to_id=data.get('reply_to_id'),
         )
-        return message
-
+        return self.repository.save_message(message)
 
 class DeleteMessageUseCase:
-    """Apaga logicamente uma mensagem."""
-    def execute(self, user, message_id: str) -> None:
-        try:
-            message = Message.objects.get(id=message_id)
-        except Message.DoesNotExist:
+    def __init__(self, repository: IChatRepository):
+        self.repository = repository
+
+    def execute(self, user_id: uuid.UUID, message_id: uuid.UUID) -> None:
+        message = self.repository.get_message_by_id(message_id)
+        if not message:
             raise NotFound('Mensagem não encontrada.')
 
-        if message.sender != user:
+        if message.sender_id != user_id:
             raise PermissionDenied('Apenas o remetente pode apagar a mensagem.')
 
-        message.soft_delete()
+        message.is_deleted = True
+        message.content = ""
+        # message.file = None (handled in repo update)
+        self.repository.save_message(message)
+
+class MarkRoomAsReadUseCase:
+    def __init__(self, repository: IChatRepository):
+        self.repository = repository
+
+    def execute(self, user_id: uuid.UUID, room_id: uuid.UUID) -> None:
+        member = self.repository.get_member_by_room_and_user(room_id, user_id)
+        if not member:
+            raise NotFound('Membro não encontrado.')
+        
+        member.last_read_at = datetime.now()
+        self.repository.save_member(member)

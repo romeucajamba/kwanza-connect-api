@@ -6,8 +6,7 @@ from rest_framework.permissions import AllowAny, IsAuthenticated
 from drf_spectacular.utils import extend_schema, OpenApiParameter
 from app.exceptions import success_response
 from ..services.use_cases import GetLiveRateUseCase, ConvertAmountUseCase, GetPlatformStatsUseCase
-from offers.models import ExchangeRate
-from offers.infra.serializers import ExchangeRateSerializer
+from ..infra.repositories import DjangoRatesRepository
 
 
 class ExchangeRateListView(APIView):
@@ -15,9 +14,10 @@ class ExchangeRateListView(APIView):
 
     @extend_schema(tags=['Câmbios'])
     def get(self, request):
-        rates = ExchangeRate.objects.select_related('from_currency', 'to_currency').all()
-        serializer = ExchangeRateSerializer(rates, many=True)
-        return success_response(data=serializer.data, message='Taxas de câmbio actuais.')
+        repo = DjangoRatesRepository()
+        rates = repo.list_all_rates()
+        # For simple listing, we can return the result directly or serialize
+        return success_response(data=rates, message='Taxas de câmbio actuais.')
 
 
 class ConvertCurrencyView(APIView):
@@ -47,7 +47,8 @@ class ConvertCurrencyView(APIView):
             from rest_framework.exceptions import ValidationError
             raise ValidationError('amount inválido.')
 
-        result = ConvertAmountUseCase().execute(from_code, to_code, amount_decimal)
+        repo = DjangoRatesRepository()
+        result = ConvertAmountUseCase(repo).execute(from_code, to_code, amount_decimal)
         return success_response(data=result)
 
 
@@ -56,5 +57,6 @@ class DashboardStatsView(APIView):
 
     @extend_schema(tags=['Estatísticas'])
     def get(self, request):
-        stats = GetPlatformStatsUseCase().execute()
+        repo = DjangoRatesRepository()
+        stats = GetPlatformStatsUseCase(repo).execute()
         return success_response(data=stats)

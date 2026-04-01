@@ -1,130 +1,128 @@
 """
 Use cases do módulo de transações.
+Orquestra repositórios e lógica de negócio operando sobre Entidades.
 """
-from django.db import transaction
+import uuid
+from abc import ABC, abstractmethod
+from typing import List, Optional
+from datetime import datetime
+from decimal import Decimal
 from rest_framework.exceptions import ValidationError, NotFound, PermissionDenied
-from ..models import Transaction, TransactionReview
-from offers.models import Offer, OfferInterest
-from chat.models import Room
 
+from ..domain.entities import TransactionEntity, TransactionReviewEntity
+from ..domain.interfaces import ITransactionRepository
+
+class IOfferService(ABC):
+    @abstractmethod
+    def close_offer(self, offer_id: uuid.UUID) -> None:
+        pass
+    
+    @abstractmethod
+    def get_offer_details(self, offer_id: uuid.UUID) -> dict:
+        pass
+
+class IChatService(ABC):
+    @abstractmethod
+    def close_room(self, room_id: uuid.UUID) -> None:
+        pass
+    
+    @abstractmethod
+    def get_other_participant(self, room_id: uuid.UUID, user_id: uuid.UUID) -> uuid.UUID:
+        pass
+
+class INotificationService(ABC):
+    @abstractmethod
+    def notify_transaction_completed(self, recipient_id: uuid.UUID, actor_id: uuid.UUID, tx_id: uuid.UUID) -> None:
+        pass
+    
+    @abstractmethod
+    def notify_new_review(self, recipient_id: uuid.UUID, actor_id: uuid.UUID, rating: int) -> None:
+        pass
 
 class ConfirmDealUseCase:
-    """
-    Confirma que um acordo foi concluído com sucesso.
-    Cria o registo de transação e encerra os objectos relacionados.
-    """
-    def execute(self, user, offer_id: str, room_id: str, notes: str = '') -> Transaction:
-        try:
-            offer = Offer.objects.select_related('give_currency', 'want_currency').get(id=offer_id, owner=user)
-        except Offer.DoesNotExist:
+    def __init__(self, repository: ITransactionRepository, offer_service: IOfferService, chat_service: IChatService, notification_service: INotificationService):
+        self.repository = repository
+        self.offer_service = offer_service
+        self.chat_service = chat_service
+        self.notification_service = notification_service
+
+    def execute(self, user_id: uuid.UUID, offer_id: uuid.UUID, room_id: uuid.UUID, notes: str = '') -> TransactionEntity:
+        # 1. Busca detalhes da oferta
+        offer_data = self.offer_service.get_offer_details(offer_id)
+        if not offer_data or offer_data['owner_id'] != user_id:
             raise NotFound('Oferta não encontrada ou não pertence ao utilizador.')
 
-        try:
-            room = Room.objects.get(id=room_id, offer=offer)
-        except Room.DoesNotExist:
-            raise ValidationError('Sala não encontrada ou não está associada a esta oferta.')
-
-        # Encontra o outro participante (comprador) na sala
-        member = room.members.exclude(user=user).first()
-        if not member:
+        # 2. Identifica o outro participante
+        buyer_id = self.chat_service.get_other_participant(room_id, user_id)
+        if not buyer_id:
             raise ValidationError('Não foi possível identificar o comprador nesta sala.')
-        
-        buyer = member.user
 
-        with transaction.atomic():
-            # 1. Cria a transação (histórico imutável)
-            trans = Transaction.objects.create(
-                offer=offer,
-                room=room,
-                seller=user,
-                buyer=buyer,
-                give_currency=offer.give_currency,
-                give_amount=offer.give_amount,
-                want_currency=offer.want_currency,
-                want_amount=offer.want_amount,
-                rate=offer.exchange_rate_snapshot, # Snapshot da publicação ou actual? Usamos snapshot original por defeito.
-                status='completed',
-                notes=notes
-            )
+        # 3. Cria a transação
+        tx = TransactionEntity(
+            id=uuid.uuid4(),
+            offer_id=offer_id,
+            room_id=room_id,
+            seller_id=user_id,
+            buyer_id=buyer_id,
+            give_currency_id=offer_data['give_currency_id'],
+            give_amount=offer_data['give_amount'],
+            want_currency_id=offer_data['want_currency_id'],
+            want_amount=offer_data['want_amount'],
+            rate=offer_data['exchange_rate_snapshot'],
+            notes=notes,
+            status='completed'
+        )
+        saved_tx = self.repository.save_transaction(tx)
 
-            # 2. Encerra a oferta
-            offer.status = 'closed'
-            offer.save(update_fields=['status', 'updated_at'])
+        # 4. Encerra oferta e sala
+        self.offer_service.close_offer(offer_id)
+        self.chat_service.close_room(room_id)
 
-            # 3. Encerra a sala de chat (opcional, mas recomendado)
-            room.status = 'closed'
-            room.save(update_fields=['status', 'closed_at'])
+        # 5. Notifica
+        self.notification_service.notify_transaction_completed(buyer_id, user_id, saved_tx.id)
 
-            # 4. Notificações via NotificationService
-            try:
-                from notifications.services.notification_service import NotificationService
-                from notifications.models import NotificationType
-                # Notificar o comprador que a transação foi confirmada
-                NotificationService.send(
-                    recipient         = buyer,
-                    actor             = user,
-                    notification_type = NotificationType.SYSTEM,
-                    payload           = {
-                        'message':  f'A troca com {user.full_name} foi marcada como concluída.',
-                        'redirect': f'/transactions/{trans.id}'
-                    }
-                )
-            except Exception:
-                pass
-
-        return trans
-
+        return saved_tx
 
 class ListUserTransactionsUseCase:
-    """Lista as transações concluídas de um utilizador."""
-    def execute(self, user, limit: int = 50, offset: int = 0):
-        from django.db.models import Q
-        return Transaction.objects.filter(
-            Q(seller=user) | Q(buyer=user)
-        ).select_related('seller', 'buyer', 'give_currency', 'want_currency').order_by('-created_at')[offset:offset+limit]
+    def __init__(self, repository: ITransactionRepository):
+        self.repository = repository
 
+    def execute(self, user_id: uuid.UUID) -> List[TransactionEntity]:
+        return self.repository.list_user_transactions(user_id)
 
 class RateTransactionUseCase:
-    """Permite aos participantes avaliarem-se mutuamente após uma transação."""
-    def execute(self, reviewer, transaction_id: str, rating: int, comment: str = '') -> TransactionReview:
-        try:
-            trans = Transaction.objects.get(id=transaction_id)
-        except Transaction.DoesNotExist:
+    def __init__(self, repository: ITransactionRepository, notification_service: INotificationService):
+        self.repository = repository
+        self.notification_service = notification_service
+
+    def execute(self, reviewer_id: uuid.UUID, transaction_id: uuid.UUID, rating: int, comment: str = '') -> TransactionReviewEntity:
+        tx = self.repository.get_transaction_by_id(transaction_id)
+        if not tx:
             raise NotFound('Transação não encontrada.')
 
-        # Valida se quem avalia é participante
-        if reviewer == trans.seller:
-            reviewed = trans.buyer
-        elif reviewer == trans.buyer:
-            reviewed = trans.seller
+        # Valida participantes
+        if reviewer_id == tx.seller_id:
+            reviewed_id = tx.buyer_id
+        elif reviewer_id == tx.buyer_id:
+            reviewed_id = tx.seller_id
         else:
             raise PermissionDenied('Apenas os participantes da transação podem avaliá-la.')
 
-        if TransactionReview.objects.filter(transaction=trans, reviewer=reviewer).exists():
-            raise ValidationError('Já avaliou esta transação.')
+        existing = self.repository.get_review_by_transaction_and_user(transaction_id, reviewer_id)
+        if existing:
+             raise ValidationError('Já avaliou esta transação.')
 
-        review = TransactionReview.objects.create(
-            transaction=trans,
-            reviewer=reviewer,
-            reviewed=reviewed,
+        review = TransactionReviewEntity(
+            id=uuid.uuid4(),
+            transaction_id=transaction_id,
+            reviewer_id=reviewer_id,
+            reviewed_id=reviewed_id,
             rating=rating,
             comment=comment
         )
-        
-        # Notificar quem recebeu a avaliação
-        try:
-            from notifications.services.notification_service import NotificationService
-            from notifications.models import NotificationType
-            NotificationService.send(
-                recipient         = reviewed,
-                actor             = reviewer,
-                notification_type = NotificationType.SYSTEM,
-                payload           = {
-                    'message':  f'{reviewer.full_name} avaliou a sua troca com {rating} estrelas.',
-                    'redirect': f'/profile/reviews'
-                }
-            )
-        except Exception:
-            pass
+        saved_review = self.repository.save_review(review)
 
-        return review
+        # Notifica receptor
+        self.notification_service.notify_new_review(reviewed_id, reviewer_id, rating)
+
+        return saved_review

@@ -24,29 +24,48 @@ Este projeto foi idealizado e desenvolvido por **Romeu Cajamba**.
 - **Cache & Message Broker:** Redis
 - **Tarefas de Fundo:** Celery & Celery Beat
 - **Documentação:** DRF Spectacular (OpenAPI 3 / Swagger)
-- **Segurança:** SimpleJWT (JSON Web Tokens)
+- **Segurança:** SimpleJWT (JSON Web Tokens) & API Key Auth
 - **Ambiente:** Docker & Docker Compose
 
 ---
 
 ## 🏛️ Arquitetura e Organização
-O projeto foi refatorado seguindo os princípios de **Clean Architecture** e **SOLID**, garantindo que a lógica de negócio seja independente de frameworks e fácil de testar.
+O projeto foi totalmente refatorado seguindo os princípios de **Clean Architecture**, **SOLID** e **Clean Code**. Esta abordagem desacopla a lógica de negócio do framework (Django), facilitando a manutenção e a testabilidade.
 
 ### Estrutura de Pastas (por Módulo)
-Cada módulo (`users`, `offers`, `chat`, etc.) segue este padrão:
-- `domain/`: Entidades puras e Interfaces/Contratos.
-- `services/`: Casos de Uso (logic of the application).
-- `infra/`: Implementações técnicas (Repositórios, Serializers, Providers).
-- `controllers/`: Camada de entrada (Django Views).
-- `routes/`: Definições de URLs.
+Cada módulo (`users`, `offers`, `chat`, `notifications`, `rates`, `transactions`, `security`) segue rigorosamente este padrão:
 
-**Módulos Principais:**
-- **Users:** Gestão de utilizadores, Autenticação JWT e Verificação de Identidade (KYC).
-- **Offers:** Publicação e gestão de propostas de câmbio.
-- **Chat:** Comunicação em tempo real entre interessados.
-- **Notifications:** Sistema de alertas multicanal (WebSocket, Push, Email).
-- **Rates:** Integração com APIs de câmbio externo e estatísticas.
-- **Transactions:** Histórico de trocas concluídas e sistema de avaliações (Ratings).
+1. **`domain/` (Coração do Sistema)**:
+   - `entities.py`: Classes Python puras (POPOs) que representam os conceitos reais.
+   - `interfaces.py`: Contratos abstratos (ABCs) para Repositórios e Serviços.
+2. **`services/` (Casos de Uso)**:
+   - `use_cases.py`: Orquestram a lógica da aplicação operando apenas sobre Entidades e Interfaces (DI via construtor).
+3. **`infra/` (Detalhes Técnicos)**:
+   - `repositories.py`: Implementações dos contratos usando o ORM do Django.
+   - `serializers.py`: Transformação de dados para a API (DRF).
+   - `services.py`: Adaptadores de infraestrutura para comunicação entre módulos.
+4. **`controllers/` (Interface de Entrada)**:
+   - `views.py`: Views do Django que injetam os repositórios concretos nos Casos de Uso.
+5. **`tests/` (Garantia de Qualidade)**:
+   - `unit/`: Testes de lógica de negócio usando Mocks para isolamento total.
+   - `e2e/`: Testes de ponta a ponta que validam o fluxo completo da API.
+
+---
+
+## 🧪 Testes e Qualidade
+A API conta com uma suíte de testes automatizados utilizando `pytest` e `pytest-django`.
+
+**Executar todos os testes:**
+```bash
+# Ativar o ambiente virtual
+.\venv\Scripts\activate
+
+# Executar a suíte completa
+pytest
+```
+
+**Módulos Cobertos:**
+A refatoração incluiu a criação de testes para todos os módulos críticos: `users`, `offers`, `chat`, `notifications`, `rates`, `transactions` e `security`.
 
 ---
 

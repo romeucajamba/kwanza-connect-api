@@ -22,6 +22,9 @@ from ..services.use_cases import (
     ExpressInterestUseCase, AcceptInterestUseCase,
     RejectInterestUseCase, CancelInterestUseCase,
 )
+from ..infra.repositories import DjangoOfferRepository
+from ..infra.services import DjangoChatService, DjangoNotificationService
+import uuid
 
 
 # ─────────────────────────────────────────────
@@ -47,6 +50,7 @@ class OfferListCreateView(APIView):
 
     @extend_schema(tags=['Ofertas'])
     def get(self, request):
+        repo = DjangoOfferRepository()
         filters = {
             'give_currency': request.query_params.get('give'),
             'want_currency': request.query_params.get('want'),
@@ -54,7 +58,7 @@ class OfferListCreateView(APIView):
             'min_amount':    request.query_params.get('min_amount'),
             'max_amount':    request.query_params.get('max_amount'),
         }
-        qs         = ListOffersUseCase().execute(filters=filters)
+        qs         = ListOffersUseCase(repo).execute(filters=filters)
         paginator  = StandardPagination()
         page       = paginator.paginate_queryset(qs, request)
         serializer = OfferSerializer(page, many=True)
@@ -62,9 +66,10 @@ class OfferListCreateView(APIView):
 
     @extend_schema(request=OfferCreateSerializer, tags=['Ofertas'])
     def post(self, request):
+        repo = DjangoOfferRepository()
         serializer = OfferCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        offer = CreateOfferUseCase().execute(user=request.user, data=serializer.validated_data)
+        offer = CreateOfferUseCase(repo).execute(user_id=request.user.id, data=serializer.validated_data)
         return created_response(
             data=OfferSerializer(offer).data,
             message='Oferta publicada com sucesso.'
@@ -88,7 +93,11 @@ class OfferDetailView(APIView):
 
     @extend_schema(tags=['Ofertas'])
     def get(self, request, offer_id: str):
-        offer      = GetOfferUseCase().execute(offer_id=offer_id, viewer=request.user)
+        repo = DjangoOfferRepository()
+        offer      = GetOfferUseCase(repo).execute(
+            offer_id=uuid.UUID(offer_id), 
+            viewer_id=request.user.id
+        )
         serializer = OfferSerializer(offer)
         return success_response(data=serializer.data)
 
@@ -98,7 +107,8 @@ class OfferPauseView(APIView):
 
     @extend_schema(tags=['Ofertas'])
     def post(self, request, offer_id: str):
-        offer = PauseOfferUseCase().execute(user=request.user, offer_id=offer_id)
+        repo = DjangoOfferRepository()
+        offer = PauseOfferUseCase(repo).execute(user_id=request.user.id, offer_id=uuid.UUID(offer_id))
         return success_response(message='Oferta pausada com sucesso.')
 
 
@@ -107,7 +117,8 @@ class OfferResumeView(APIView):
 
     @extend_schema(tags=['Ofertas'])
     def post(self, request, offer_id: str):
-        offer = ResumeOfferUseCase().execute(user=request.user, offer_id=offer_id)
+        repo = DjangoOfferRepository()
+        offer = ResumeOfferUseCase(repo).execute(user_id=request.user.id, offer_id=uuid.UUID(offer_id))
         return success_response(message='Oferta retomada com sucesso.')
 
 
@@ -116,7 +127,8 @@ class OfferCloseView(APIView):
 
     @extend_schema(tags=['Ofertas'])
     def post(self, request, offer_id: str):
-        CloseOfferUseCase().execute(user=request.user, offer_id=offer_id)
+        repo = DjangoOfferRepository()
+        CloseOfferUseCase(repo).execute(user_id=request.user.id, offer_id=uuid.UUID(offer_id))
         return success_response(message='Oferta encerrada com sucesso.')
 
 
@@ -129,11 +141,12 @@ class ExpressInterestView(APIView):
 
     @extend_schema(request=OfferInterestCreateSerializer, tags=['Interesses'])
     def post(self, request, offer_id: str):
+        repo = DjangoOfferRepository()
         serializer = OfferInterestCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        interest = ExpressInterestUseCase().execute(
-            user=request.user,
-            offer_id=offer_id,
+        interest = ExpressInterestUseCase(repo).execute(
+            user_id=request.user.id,
+            offer_id=uuid.UUID(offer_id),
             message=serializer.validated_data.get('message', ''),
         )
         return created_response(
@@ -163,9 +176,15 @@ class AcceptInterestView(APIView):
 
     @extend_schema(tags=['Interesses'])
     def post(self, request, interest_id: str):
-        room = AcceptInterestUseCase().execute(user=request.user, interest_id=interest_id)
+        repo = DjangoOfferRepository()
+        chat_service = DjangoChatService()
+        notif_service = DjangoNotificationService()
+        room_id = AcceptInterestUseCase(repo, chat_service, notif_service).execute(
+            user_id=request.user.id, 
+            interest_id=uuid.UUID(interest_id)
+        )
         return success_response(
-            data={'room_id': str(room.id)},
+            data={'room_id': str(room_id)},
             message='Interesse aceite. A conversa foi iniciada.'
         )
 
@@ -175,7 +194,12 @@ class RejectInterestView(APIView):
 
     @extend_schema(tags=['Interesses'])
     def post(self, request, interest_id: str):
-        RejectInterestUseCase().execute(user=request.user, interest_id=interest_id)
+        repo = DjangoOfferRepository()
+        notif_service = DjangoNotificationService()
+        RejectInterestUseCase(repo, notif_service).execute(
+            user_id=request.user.id, 
+            interest_id=uuid.UUID(interest_id)
+        )
         return success_response(message='Interesse rejeitado.')
 
 
@@ -184,7 +208,11 @@ class CancelInterestView(APIView):
 
     @extend_schema(tags=['Interesses'])
     def delete(self, request, interest_id: str):
-        CancelInterestUseCase().execute(user=request.user, interest_id=interest_id)
+        repo = DjangoOfferRepository()
+        CancelInterestUseCase(repo).execute(
+            user_id=request.user.id, 
+            interest_id=uuid.UUID(interest_id)
+        )
         return success_response(message='Interesse cancelado com sucesso.')
 
 
