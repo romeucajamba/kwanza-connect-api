@@ -13,16 +13,22 @@ services:
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U ${DB_USER}"]
       interval: 10s
+      timeout: 5s
       retries: 5
 
   redis:
     image: redis:7-alpine
     volumes:
       - redis_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
   web:
     build: .
-    command: gunicorn config.wsgi:application --bind 0.0.0.0:8000 --workers 4
+    command: daphne -b 0.0.0.0 -p 8000 config.asgi:application
     volumes:
       - .:/app
       - static_volume:/app/staticfiles
@@ -34,19 +40,38 @@ services:
       db:
         condition: service_healthy
       redis:
-        condition: service_started
+        condition: service_healthy
+    restart: on-failure
 
   celery:
     build: .
-    command: celery -A config worker --loglevel=info
+    command: celery -A config worker --loglevel=info --concurrency=4
     volumes:
       - .:/app
     env_file: .env
     environment:
       - DJANGO_SETTINGS_MODULE=config.settings.development
     depends_on:
-      - web
-      - redis
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: on-failure
+
+  celery-beat:
+    build: .
+    command: celery -A config beat --loglevel=info --scheduler django_celery_beat.schedulers:DatabaseScheduler
+    volumes:
+      - .:/app
+    env_file: .env
+    environment:
+      - DJANGO_SETTINGS_MODULE=config.settings.development
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: on-failure
 
   nginx:
     image: nginx:alpine
@@ -58,6 +83,7 @@ services:
       - media_volume:/app/media
     depends_on:
       - web
+    restart: on-failure
 
 volumes:
   postgres_data:
