@@ -12,6 +12,9 @@ class RoomEntity:
     created_at: Optional[datetime] = None
     closed_at: Optional[datetime] = None
     
+    # Metadata para o Frontend (Preenchido pelo Repositório)
+    other_user: Optional[Dict[str, Any]] = None
+    
     def is_active(self) -> bool:
         return self.status == 'active'
 

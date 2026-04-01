@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Any
 import uuid
 
 @dataclass
@@ -11,9 +11,9 @@ class IdentityDocumentEntity:
     doc_number: str
     doc_country: str
     status: str
-    front_image: Optional[str] = None
-    back_image: Optional[str] = None
-    pdf_file: Optional[str] = None
+    front_image: Optional[Any] = None
+    back_image: Optional[Any] = None
+    pdf_file: Optional[Any] = None
     rejection_reason: str = ""
     submitted_at: Optional[datetime] = None
     reviewed_at: Optional[datetime] = None
@@ -61,7 +61,7 @@ class UserEntity:
     address: str = ""
     occupation: str = ""
     bio: str = ""
-    avatar: Optional[str] = None
+    avatar: Optional[Any] = None
     last_seen: Optional[datetime] = None
     date_joined: Optional[datetime] = None
     preferred_give_currency: str = ""

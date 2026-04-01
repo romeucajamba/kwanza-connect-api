@@ -117,9 +117,11 @@ class DjangoUserRepository(IUserRepository):
                     'preferred_want_currency': user_entity.preferred_want_currency,
                 }
             )
-            # Se for novo ou atualizado, podemos precisar lidar com senha separadamente se for o caso
-            # mas o save de entidade não deve lidar com senhas diretamente se existirem usecases para isso.
-            
+            # Persistência de arquivo se for um upload (não apenas string URL)
+            if user_entity.avatar and not isinstance(user_entity.avatar, str):
+                django_user.avatar = user_entity.avatar
+                django_user.save(update_fields=['avatar'])
+
             if user_entity.security:
                 self.update_security(user_entity.security)
                 
@@ -176,11 +178,19 @@ class DjangoUserRepository(IUserRepository):
                 'doc_number': document.doc_number,
                 'doc_country': document.doc_country,
                 'status': document.status,
-                'rejection_reason': document.rejection_reason,
                 'reviewed_at': document.reviewed_at,
                 'reviewed_by_id': document.reviewed_by_id,
             }
         )
+        # Handle files
+        if document.front_image and not isinstance(document.front_image, str):
+             django_identity.front_image = document.front_image
+        if document.back_image and not isinstance(document.back_image, str):
+             django_identity.back_image = document.back_image
+        if document.pdf_file and not isinstance(document.pdf_file, str):
+             django_identity.pdf_file = document.pdf_file
+        
+        django_identity.save()
 
     def get_kyc_document_by_user_id(self, user_id: uuid.UUID) -> Optional[IdentityDocumentEntity]:
         try:

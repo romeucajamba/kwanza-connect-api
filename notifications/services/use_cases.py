@@ -9,6 +9,7 @@ from rest_framework.exceptions import ValidationError, NotFound, PermissionDenie
 
 from ..domain.entities import NotificationEntity, NotificationPreferenceEntity
 from ..domain.interfaces import INotificationRepository
+from app.services.websocket_service import IWebSocketService
 
 class GetUserNotificationsUseCase:
     def __init__(self, repository: INotificationRepository):
@@ -18,8 +19,9 @@ class GetUserNotificationsUseCase:
         return self.repository.list_user_notifications(user_id, limit, only_unread)
 
 class MarkNotificationReadUseCase:
-    def __init__(self, repository: INotificationRepository):
+    def __init__(self, repository: INotificationRepository, ws_service: IWebSocketService = None):
         self.repository = repository
+        self.ws_service = ws_service
 
     def execute(self, user_id: uuid.UUID, notification_id: Optional[uuid.UUID] = None) -> None:
         if notification_id:
@@ -32,6 +34,13 @@ class MarkNotificationReadUseCase:
             self.repository.save_notification(notif)
         else:
             self.repository.mark_all_as_read(user_id)
+            
+        if self.ws_service:
+            self.ws_service.send_to_user(
+                user_id=str(user_id),
+                event_type="unread_count_update",
+                payload={"unread_count": self.repository.get_unread_count(user_id)}
+            )
 
 class UpdateNotificationPreferencesUseCase:
     def __init__(self, repository: INotificationRepository):
@@ -59,3 +68,10 @@ class GetNotificationPreferencesUseCase:
             prefs = NotificationPreferenceEntity(id=uuid.uuid4(), user_id=user_id)
             return self.repository.save_preference(prefs)
         return prefs
+
+class GetUnreadCountUseCase:
+    def __init__(self, repository: INotificationRepository):
+        self.repository = repository
+
+    def execute(self, user_id: uuid.UUID) -> int:
+        return self.repository.get_unread_count(user_id)

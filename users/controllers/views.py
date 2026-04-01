@@ -24,6 +24,7 @@ from ..services.use_cases import (
     UpdateProfileUseCase, SubmitKYCUseCase,
 )
 from ..infra.repositories import DjangoUserRepository
+from ..infra.email_service import TerminalEmailService
 from ..models import User
 
 
@@ -37,9 +38,10 @@ class RegisterView(APIView):
     @extend_schema(request=RegisterSerializer, tags=['Autenticação'])
     def post(self, request):
         repo = DjangoUserRepository()
+        email_service = TerminalEmailService()
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        result = RegisterUserUseCase(repo).execute(**serializer.validated_data)
+        result = RegisterUserUseCase(repo, email_service).execute(**serializer.validated_data)
         return created_response(data=result, message='Conta criada com sucesso. Verifique o seu email.')
 
 
@@ -91,9 +93,10 @@ class ForgotPasswordView(APIView):
     @extend_schema(request=ForgotPasswordSerializer, tags=['Autenticação'])
     def post(self, request):
         repo = DjangoUserRepository()
+        email_service = TerminalEmailService()
         serializer = ForgotPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        ForgotPasswordUseCase(repo).execute(email=serializer.validated_data['email'])
+        ForgotPasswordUseCase(repo, email_service).execute(email=serializer.validated_data['email'])
         return success_response(
             message='Se o email existir na plataforma, receberá um link de reset em breve.'
         )
@@ -130,11 +133,18 @@ class MeView(APIView):
     @extend_schema(request=UpdateProfileSerializer, tags=['Perfil'])
     def patch(self, request):
         repo = DjangoUserRepository()
+        # O serializer valida os dados, incluindo arquivos se presentes
         serializer = UpdateProfileSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
-        UpdateProfileUseCase(repo).execute(user_id=request.user.id, **serializer.validated_data)
+        
+        # Executa o Use Case com os campos validados (que podem conter InMemoryUploadedFile)
+        updated_user = UpdateProfileUseCase(repo).execute(
+            user_id=request.user.id, 
+            **serializer.validated_data
+        )
+        
         return success_response(
-            data=UserProfileSerializer(request.user).data,
+            data=UserProfileSerializer(updated_user).data,
             message='Perfil actualizado com sucesso.'
         )
 

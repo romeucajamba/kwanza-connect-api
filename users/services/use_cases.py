@@ -14,10 +14,12 @@ from rest_framework.exceptions import AuthenticationFailed, ValidationError, Not
 
 from ..domain.entities import UserEntity, UserSecurityEntity, IdentityDocumentEntity
 from ..domain.interfaces import IUserRepository
+from ..infra.email_service import IEmailService
 
 class RegisterUserUseCase:
-    def __init__(self, repository: IUserRepository):
+    def __init__(self, repository: IUserRepository, email_service: IEmailService = None):
         self.repository = repository
+        self.email_service = email_service
 
     def execute(self, email: str, password: str, full_name: str, **kwargs) -> dict:
         if self.repository.exists_by_email(email):
@@ -47,6 +49,13 @@ class RegisterUserUseCase:
         token = secrets.token_urlsafe(32)
         security.email_token = hashlib.sha256(token.encode()).hexdigest()
         self.repository.update_security(security)
+
+        if self.email_service:
+            self.email_service.send_email(
+                subject="Ative a sua conta — KwanzaConnect",
+                body=f"Olá {user.full_name},\n\nUtilize este link para ativar a sua conta: http://localhost:8000/api/auth/verify-email/{token}/",
+                recipient=user.email
+            )
 
         return {
             'id': str(user.id),
@@ -204,3 +213,56 @@ class SubmitKYCUseCase:
 
         user.verification_status = 'submitted'
         self.repository.save(user)
+
+class ForgotPasswordUseCase:
+    def __init__(self, repository: IUserRepository, email_service: IEmailService):
+        self.repository = repository
+        self.email_service = email_service
+
+    def execute(self, email: str) -> None:
+        user = self.repository.get_by_email(email)
+        if not user:
+            return # Não expor se o email existe ou não por segurança em produção
+        
+        security = self.repository.get_security_by_user_id(user.id)
+        if not security:
+            return
+
+        token = secrets.token_urlsafe(32)
+        security.password_reset_token = hashlib.sha256(token.encode()).hexdigest()
+        from django.utils import timezone
+        security.password_reset_expires = timezone.now() + timedelta(hours=2)
+        self.repository.update_security(security)
+
+        self.email_service.send_email(
+            subject="Recuperação de Senha — KwanzaConnect",
+            body=f"Olá {user.full_name},\n\nUtilize este token para redefinir a sua senha: {token}\nExpira em 2 horas.",
+            recipient=user.email
+        )
+
+class ResetPasswordUseCase:
+    def __init__(self, repository: IUserRepository):
+        self.repository = repository
+
+    def execute(self, token: str, new_password: str) -> None:
+        hashed = hashlib.sha256(token.encode()).hexdigest()
+        security = self.repository.get_security_by_reset_token(hashed)
+        
+        if not security:
+             raise ValidationError('Token de recuperação inválido ou expirado.')
+
+        from django.utils import timezone
+        if security.password_reset_expires and security.password_reset_expires < timezone.now():
+             raise ValidationError('O token de recuperação expirou.')
+
+        # Atualizar senha no model Django (devido ao hash)
+        from ..models import User
+        django_user = User.objects.get(id=security.user_id)
+        django_user.set_password(new_password)
+        django_user.save(update_fields=['password'])
+
+        # Limpar token
+        security.password_reset_token = ""
+        security.password_reset_expires = None
+        security.password_changed_at = timezone.now()
+        self.repository.update_security(security)

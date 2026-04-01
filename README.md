@@ -19,12 +19,13 @@ Este projeto foi idealizado e desenvolvido por **Romeu Cajamba**.
 ## 🛠️ Tecnologias Utilizadas
 - **Backend:** Python 3.10+ & Django 4.2+
 - **API Framework:** Django REST Framework (DRF)
-- **Real-Time:** Django Channels (WebSockets)
+- **Real-Time:** Django Channels (WebSockets) com Redis Layer
+- **Email Service:** Mock Terminal (Dev) / SMTP (Prod)
 - **Base de Dados:** PostgreSQL
 - **Cache & Message Broker:** Redis
 - **Tarefas de Fundo:** Celery & Celery Beat
 - **Documentação:** DRF Spectacular (OpenAPI 3 / Swagger)
-- **Segurança:** SimpleJWT (JSON Web Tokens) & API Key Auth
+- **Segurança:** SimpleJWT (JSON Web Tokens), Argon2 & API Key Auth
 - **Ambiente:** Docker & Docker Compose
 
 ---
@@ -75,6 +76,8 @@ A refatoração incluiu a criação de testes para todos os módulos críticos: 
 3. **Interesses:** Quando um utilizador demonstra interesse, uma sala de chat privada é criada entre as partes.
 4. **Taxas Reais:** O sistema atualiza as taxas de câmbio mundiais a cada 5 minutos via Celery Beat para servir de referência.
 5. **Avaliação:** Após a conclusão de uma transação, ambos os participantes podem avaliar-se mutuamente (1 a 5 estrelas).
+6. **Recuperação de Conta:** Fluxo completo de "Esqueci a Senha" com tokens seguros e expiração de 2 horas.
+7. **Tempo Real:** Notificações e mensagens de chat são entregues via WebSockets instantaneamente.
 
 ---
 

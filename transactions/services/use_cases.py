@@ -30,6 +30,10 @@ class IChatService(ABC):
     def get_other_participant(self, room_id: uuid.UUID, user_id: uuid.UUID) -> uuid.UUID:
         pass
 
+    @abstractmethod
+    def verify_room_offer(self, room_id: uuid.UUID, offer_id: uuid.UUID) -> bool:
+        pass
+
 class INotificationService(ABC):
     @abstractmethod
     def notify_transaction_completed(self, recipient_id: uuid.UUID, actor_id: uuid.UUID, tx_id: uuid.UUID) -> None:
@@ -52,7 +56,10 @@ class ConfirmDealUseCase:
         if not offer_data or offer_data['owner_id'] != user_id:
             raise NotFound('Oferta não encontrada ou não pertence ao utilizador.')
 
-        # 2. Identifica o outro participante
+        # 2. Identifica o outro participante e valida a sala
+        if not self.chat_service.verify_room_offer(room_id, offer_id):
+            raise ValidationError('Esta sala de chat não está associada a esta oferta.')
+
         buyer_id = self.chat_service.get_other_participant(room_id, user_id)
         if not buyer_id:
             raise ValidationError('Não foi possível identificar o comprador nesta sala.')
