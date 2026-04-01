@@ -59,8 +59,12 @@ MIDDLEWARE = [
 from celery.schedules import crontab
 CELERY_BEAT_SCHEDULE = {
     'fetch-exchange-rates': {
-        'task': 'apps.rates.tasks.fetch_rates',
+        'task':     'apps.rates.tasks.fetch_rates',
         'schedule': crontab(minute='*/5'),
+    },
+    'expire-old-offers': {                    # ← novo
+        'task':     'apps.offers.tasks.expire_old_offers',
+        'schedule': crontab(minute=0),        # a cada hora
     },
 }
 

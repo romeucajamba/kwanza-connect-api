@@ -1,0 +1,14 @@
+[
+  {"model":"offers.currency","pk":"00000000-0000-0000-0000-000000000001",
+   "fields":{"code":"AOA","name":"Kwanza","symbol":"Kz","flag_emoji":"🇦🇴","is_active":true,"sort_order":1}},
+  {"model":"offers.currency","pk":"00000000-0000-0000-0000-000000000002",
+   "fields":{"code":"USD","name":"Dólar Americano","symbol":"$","flag_emoji":"🇺🇸","is_active":true,"sort_order":2}},
+  {"model":"offers.currency","pk":"00000000-0000-0000-0000-000000000003",
+   "fields":{"code":"EUR","name":"Euro","symbol":"€","flag_emoji":"🇪🇺","is_active":true,"sort_order":3}},
+  {"model":"offers.currency","pk":"00000000-0000-0000-0000-000000000004",
+   "fields":{"code":"GBP","name":"Libra Esterlina","symbol":"£","flag_emoji":"🇬🇧","is_active":true,"sort_order":4}},
+  {"model":"offers.currency","pk":"00000000-0000-0000-0000-000000000005",
+   "fields":{"code":"CNY","name":"Yuan Chinês","symbol":"¥","flag_emoji":"🇨🇳","is_active":true,"sort_order":5}},
+  {"model":"offers.currency","pk":"00000000-0000-0000-0000-000000000006",
+   "fields":{"code":"ZAR","name":"Rand Sul-Africano","symbol":"R","flag_emoji":"🇿🇦","is_active":true,"sort_order":6}}
+]
