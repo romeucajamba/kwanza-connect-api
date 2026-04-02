@@ -66,6 +66,7 @@ class UserEntity:
     date_joined: Optional[datetime] = None
     preferred_give_currency: str = ""
     preferred_want_currency: str = ""
+    password: Optional[str] = None
     
     security: Optional[UserSecurityEntity] = None
     identity_document: Optional[IdentityDocumentEntity] = None

@@ -116,6 +116,13 @@ class DjangoOfferRepository(IOfferRepository):
         except DjangoOffer.DoesNotExist:
             return None
 
+    def get_offer_by_id_for_update(self, offer_id: uuid.UUID) -> Optional[OfferEntity]:
+        try:
+            # Bloqueio de base de dados para evitar condições de corrida (select_for_update)
+            return self._offer_to_entity(DjangoOffer.objects.select_for_update().get(id=offer_id))
+        except DjangoOffer.DoesNotExist:
+            return None
+
     def list_offers(self, filters: dict) -> List[OfferEntity]:
         qs = DjangoOffer.objects.filter(status='active').select_related('owner', 'give_currency', 'want_currency')
         if give := filters.get('give_currency'):
@@ -150,6 +157,13 @@ class DjangoOfferRepository(IOfferRepository):
     def get_interest_by_id(self, interest_id: uuid.UUID) -> Optional[OfferInterestEntity]:
         try:
             return self._interest_to_entity(DjangoOfferInterest.objects.get(id=interest_id))
+        except DjangoOfferInterest.DoesNotExist:
+            return None
+
+    def get_interest_by_id_for_update(self, interest_id: uuid.UUID) -> Optional[OfferInterestEntity]:
+        try:
+            # Bloqueio de base de dados para evitar condições de corrida (select_for_update)
+            return self._interest_to_entity(DjangoOfferInterest.objects.select_for_update().get(id=interest_id))
         except DjangoOfferInterest.DoesNotExist:
             return None
 

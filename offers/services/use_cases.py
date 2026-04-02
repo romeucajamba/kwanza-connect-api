@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 from decimal import Decimal
 from datetime import datetime
+from django.db import transaction
 from rest_framework.exceptions import ValidationError, NotFound, PermissionDenied
 
 from ..domain.entities import OfferEntity, OfferInterestEntity, CurrencyEntity
@@ -138,31 +139,35 @@ class AcceptInterestUseCase:
         self.notification_service = notification_service
 
     def execute(self, user_id: uuid.UUID, interest_id: uuid.UUID) -> uuid.UUID:
-        interest = self.repository.get_interest_by_id(interest_id)
-        if not interest:
-             raise NotFound('Interesse não encontrado.')
-             
-        offer = self.repository.get_offer_by_id(interest.offer_id)
-        if not offer or offer.owner_id != user_id:
-            raise PermissionDenied('Apenas o dono da oferta pode aceitar interesses.')
+        with transaction.atomic():
+            interest = self.repository.get_interest_by_id_for_update(interest_id)
+            if not interest:
+                 raise NotFound('Interesse não encontrado.')
+                 
+            offer = self.repository.get_offer_by_id_for_update(interest.offer_id)
+            if not offer or offer.owner_id != user_id:
+                raise PermissionDenied('Apenas o dono da oferta pode aceitar interesses.')
 
-        if interest.status != 'pending':
-            raise ValidationError('Só é possível aceitar interesses pendentes.')
+            if interest.status != 'pending':
+                raise ValidationError('Só é possível aceitar interesses pendentes.')
+            
+            if offer.status != 'active':
+                raise ValidationError('Esta oferta já não está disponível para negociação.')
 
-        # Orquestração
-        room_id = self.chat_service.create_offer_room(offer.id, offer.owner_id, interest.buyer_id)
-        
-        interest.status = 'chat_open'
-        interest.room_id = room_id
-        interest.responded_at = datetime.now()
-        self.repository.save_interest(interest)
+            # Orquestração
+            room_id = self.chat_service.create_offer_room(offer.id, offer.owner_id, interest.buyer_id)
+            
+            interest.status = 'chat_open'
+            interest.room_id = room_id
+            interest.responded_at = datetime.now()
+            self.repository.save_interest(interest)
 
-        offer.status = 'dealing'
-        self.repository.save_offer(offer)
+            offer.status = 'dealing'
+            self.repository.save_offer(offer)
 
-        self.notification_service.notify_interest_accepted(interest.buyer_id, offer.id, room_id)
-        
-        return room_id
+            self.notification_service.notify_interest_accepted(interest.buyer_id, offer.id, room_id)
+            
+            return room_id
 
 class RejectInterestUseCase:
     def __init__(self, repository: IOfferRepository, notification_service: INotificationService):
@@ -207,23 +212,25 @@ class ExpressInterestUseCase:
         self.repository = repository
 
     def execute(self, user_id: uuid.UUID, offer_id: uuid.UUID, message: str = '') -> OfferInterestEntity:
-        offer = self.repository.get_offer_by_id(offer_id)
-        if not offer:
-            raise NotFound('Oferta não encontrada.')
+        with transaction.atomic():
+            # Bloqueia a oferta para verificar disponibilidade de forma segura
+            offer = self.repository.get_offer_by_id_for_update(offer_id)
+            if not offer:
+                raise NotFound('Oferta não encontrada.')
 
-        if offer.owner_id == user_id:
-            raise ValidationError('Não pode demonstrar interesse na sua própria oferta.')
-        if not offer.is_active:
-            raise ValidationError('Esta oferta já não está disponível.')
-        
-        existing = self.repository.get_interest_by_offer_and_buyer(offer_id, user_id)
-        if existing:
-            raise ValidationError('Já demonstrou interesse nesta oferta.')
+            if offer.owner_id == user_id:
+                raise ValidationError('Não pode demonstrar interesse na sua própria oferta.')
+            if not offer.is_active:
+                raise ValidationError('Esta oferta já não está disponível.')
+            
+            existing = self.repository.get_interest_by_offer_and_buyer(offer_id, user_id)
+            if existing:
+                raise ValidationError('Já demonstrou interesse nesta oferta.')
 
-        interest = OfferInterestEntity(
-            id=uuid.uuid4(),
-            offer_id=offer_id,
-            buyer_id=user_id,
-            message=message,
-        )
-        return self.repository.save_interest(interest)
+            interest = OfferInterestEntity(
+                id=uuid.uuid4(),
+                offer_id=offer_id,
+                buyer_id=user_id,
+                message=message,
+            )
+            return self.repository.save_interest(interest)

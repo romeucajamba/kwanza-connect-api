@@ -14,9 +14,19 @@ class RegisterSerializer(serializers.ModelSerializer):
     password         = serializers.CharField(write_only=True, min_length=8, style={'input_type': 'password'})
     password_confirm = serializers.CharField(write_only=True, style={'input_type': 'password'})
 
+    # Campos opcionais para KYC durante o registo
+    doc_type         = serializers.ChoiceField(choices=IdentityDocument.DOC_TYPE, required=False)
+    doc_number       = serializers.CharField(required=False)
+    front_image      = serializers.ImageField(required=False)
+    back_image       = serializers.ImageField(required=False)
+
     class Meta:
         model  = User
-        fields = ['email', 'full_name', 'phone', 'country_code', 'password', 'password_confirm']
+        fields = [
+            'email', 'full_name', 'phone', 'country_code', 
+            'password', 'password_confirm',
+            'doc_type', 'doc_number', 'front_image', 'back_image'
+        ]
         extra_kwargs = {
             'email':        {'required': True},
             'full_name':    {'required': True},
