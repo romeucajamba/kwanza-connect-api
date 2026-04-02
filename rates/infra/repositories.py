@@ -3,8 +3,8 @@ from decimal import Decimal
 from django.db.models import Count
 from offers.models import ExchangeRate, Currency, Offer
 from users.models import User
-from .domain.entities import PlatformStatsEntity
-from .domain.interfaces import IRatesRepository
+from ..domain.entities import PlatformStatsEntity
+from ..domain.interfaces import IRatesRepository
 
 class DjangoRatesRepository(IRatesRepository):
     

@@ -3,7 +3,7 @@ import uuid
 from decimal import Decimal
 from django.db import transaction
 from django.utils import timezone
-from .models import (
+from ..models import (
     Currency as DjangoCurrency, 
     ExchangeRate as DjangoExchangeRate, 
     Offer as DjangoOffer, 

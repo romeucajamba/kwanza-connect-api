@@ -1,7 +1,7 @@
 from typing import Optional, List
-from .models import APIKey as DjangoAPIKey
-from .domain.entities import APIKeyEntity
-from .domain.interfaces import ISecurityRepository
+from ..models import APIKey as DjangoAPIKey
+from ..domain.entities import APIKeyEntity
+from ..domain.interfaces import ISecurityRepository
 from django.utils import timezone
 
 class DjangoSecurityRepository(ISecurityRepository):

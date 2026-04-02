@@ -2,7 +2,7 @@ from typing import Optional, List
 import uuid
 from django.db import transaction
 from django.utils import timezone
-from .models import (
+from ..models import (
     Notification as DjangoNotification,
     NotificationPreference as DjangoNotificationPreference,
     PushDevice as DjangoPushDevice
