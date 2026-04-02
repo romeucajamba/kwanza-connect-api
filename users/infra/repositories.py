@@ -117,10 +117,15 @@ class DjangoUserRepository(IUserRepository):
                     'preferred_want_currency': user_entity.preferred_want_currency,
                 }
             )
+            # Persistência e Hashing de senha (apenas se for uma nova senha raw fornecida)
+            if user_entity.password and not user_entity.password.startswith(('pbkdf2_', 'argon2$', 'bcrypt$')):
+                django_user.set_password(user_entity.password)
+
             # Persistência de arquivo se for um upload (não apenas string URL)
             if user_entity.avatar and not isinstance(user_entity.avatar, str):
                 django_user.avatar = user_entity.avatar
-                django_user.save(update_fields=['avatar'])
+            
+            django_user.save()
 
             if user_entity.security:
                 self.update_security(user_entity.security)
@@ -170,7 +175,7 @@ class DjangoUserRepository(IUserRepository):
             return None
 
     def save_kyc_document(self, document: IdentityDocumentEntity) -> None:
-        DjangoIdentityDocument.objects.update_or_create(
+        django_identity, _ = DjangoIdentityDocument.objects.update_or_create(
             id=document.id,
             defaults={
                 'user_id': document.user_id,

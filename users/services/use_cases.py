@@ -31,6 +31,8 @@ class RegisterUserUseCase:
             id=user_id,
             email=email,
             full_name=full_name,
+            password=password,
+            is_active=True, # Activado por padrão para facilitar o desenvolvimento
             **kwargs
         )
         
@@ -40,6 +42,27 @@ class RegisterUserUseCase:
         
         # Salvamento inicial (o repositório cuidará de criar o registro no banco)
         user = self.repository.save(user)
+        
+        # Lógica de KYC (Identidade) se fornecida durante o registo
+        doc_type    = kwargs.get('doc_type')
+        doc_number  = kwargs.get('doc_number')
+        front_image = kwargs.get('front_image')
+        back_image  = kwargs.get('back_image')
+
+        if doc_type and doc_number:
+            doc = IdentityDocumentEntity(
+                id=uuid.uuid4(),
+                user_id=user.id,
+                doc_type=doc_type,
+                doc_number=doc_number,
+                doc_country=kwargs.get('country_code', 'AO'),
+                status='pending',
+                front_image=front_image,
+                back_image=back_image
+            )
+            self.repository.save_kyc_document(doc)
+            user.verification_status = 'submitted'
+            self.repository.save(user)
         
         # Lógica de segurança (Segurança de Email)
         security = self.repository.get_security_by_user_id(user.id)

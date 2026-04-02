@@ -7,6 +7,7 @@ from abc import ABC, abstractmethod
 from typing import List, Optional
 from datetime import datetime
 from decimal import Decimal
+from django.db import transaction
 from rest_framework.exceptions import ValidationError, NotFound, PermissionDenied
 
 from ..domain.entities import TransactionEntity, TransactionReviewEntity
@@ -51,44 +52,45 @@ class ConfirmDealUseCase:
         self.notification_service = notification_service
 
     def execute(self, user_id: uuid.UUID, offer_id: uuid.UUID, room_id: uuid.UUID, notes: str = '') -> TransactionEntity:
-        # 1. Busca detalhes da oferta
-        offer_data = self.offer_service.get_offer_details(offer_id)
-        if not offer_data or offer_data['owner_id'] != user_id:
-            raise NotFound('Oferta não encontrada ou não pertence ao utilizador.')
+        with transaction.atomic():
+            # 1. Busca detalhes da oferta
+            offer_data = self.offer_service.get_offer_details(offer_id)
+            if not offer_data or offer_data['owner_id'] != user_id:
+                raise NotFound('Oferta não encontrada ou não pertence ao utilizador.')
 
-        # 2. Identifica o outro participante e valida a sala
-        if not self.chat_service.verify_room_offer(room_id, offer_id):
-            raise ValidationError('Esta sala de chat não está associada a esta oferta.')
+            # 2. Identifica o outro participante e valida a sala
+            if not self.chat_service.verify_room_offer(room_id, offer_id):
+                raise ValidationError('Esta sala de chat não está associada a esta oferta.')
 
-        buyer_id = self.chat_service.get_other_participant(room_id, user_id)
-        if not buyer_id:
-            raise ValidationError('Não foi possível identificar o comprador nesta sala.')
+            buyer_id = self.chat_service.get_other_participant(room_id, user_id)
+            if not buyer_id:
+                raise ValidationError('Não foi possível identificar o comprador nesta sala.')
 
-        # 3. Cria a transação
-        tx = TransactionEntity(
-            id=uuid.uuid4(),
-            offer_id=offer_id,
-            room_id=room_id,
-            seller_id=user_id,
-            buyer_id=buyer_id,
-            give_currency_id=offer_data['give_currency_id'],
-            give_amount=offer_data['give_amount'],
-            want_currency_id=offer_data['want_currency_id'],
-            want_amount=offer_data['want_amount'],
-            rate=offer_data['exchange_rate_snapshot'],
-            notes=notes,
-            status='completed'
-        )
-        saved_tx = self.repository.save_transaction(tx)
+            # 3. Cria a transação
+            tx = TransactionEntity(
+                id=uuid.uuid4(),
+                offer_id=offer_id,
+                room_id=room_id,
+                seller_id=user_id,
+                buyer_id=buyer_id,
+                give_currency_id=offer_data['give_currency_id'],
+                give_amount=offer_data['give_amount'],
+                want_currency_id=offer_data['want_currency_id'],
+                want_amount=offer_data['want_amount'],
+                rate=offer_data['exchange_rate_snapshot'],
+                notes=notes,
+                status='completed'
+            )
+            saved_tx = self.repository.save_transaction(tx)
 
-        # 4. Encerra oferta e sala
-        self.offer_service.close_offer(offer_id)
-        self.chat_service.close_room(room_id)
+            # 4. Encerra oferta e sala
+            self.offer_service.close_offer(offer_id)
+            self.chat_service.close_room(room_id)
 
-        # 5. Notifica
-        self.notification_service.notify_transaction_completed(buyer_id, user_id, saved_tx.id)
+            # 5. Notifica
+            self.notification_service.notify_transaction_completed(buyer_id, user_id, saved_tx.id)
 
-        return saved_tx
+            return saved_tx
 
 class ListUserTransactionsUseCase:
     def __init__(self, repository: ITransactionRepository):

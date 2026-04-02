@@ -42,18 +42,35 @@ class RegisterView(APIView):
         email_service = TerminalEmailService()
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        result = RegisterUserUseCase(repo, email_service).execute(**serializer.validated_data)
         
-        # Auditoria
-        audit_log(
-            action='USER_REGISTER', 
-            resource='users', 
-            resource_id=result['id'], 
-            metadata={'email': result['email']},
-            request=request
-        )
+        email = serializer.validated_data.get('email')
         
-        return created_response(data=result, message='Conta criada com sucesso. Verifique o seu email.')
+        # Log de tentativa
+        audit_log(action='USER_REGISTER_ATTEMPT', resource='users', metadata={'email': email}, request=request)
+        
+        try:
+            result = RegisterUserUseCase(repo, email_service).execute(**serializer.validated_data)
+            
+            # Log de Sucesso
+            audit_log(
+                action='USER_REGISTER_SUCCESS', 
+                resource='users', 
+                resource_id=result['id'], 
+                metadata={'email': result['email']},
+                request=request
+            )
+            
+            return created_response(data=result, message='Conta criada com sucesso. Verifique o seu email.')
+            
+        except Exception as e:
+            # Log de Falha
+            audit_log(
+                action='USER_REGISTER_FAILURE', 
+                resource='users', 
+                metadata={'email': email, 'error': str(e)},
+                request=request
+            )
+            raise e
 
 
 class LoginView(APIView):
@@ -64,20 +81,40 @@ class LoginView(APIView):
         repo = DjangoUserRepository()
         serializer = LoginSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        tokens = LoginUseCase(repo).execute(
-            email=serializer.validated_data['email'],
-            password=serializer.validated_data['password'],
-        )
         
-        # Auditoria
+        email = serializer.validated_data['email']
+        password = serializer.validated_data['password']
+        
+        # Log de tentativa (Visível no terminal)
         audit_log(
-            action='USER_LOGIN', 
+            action='USER_LOGIN_ATTEMPT', 
             resource='users', 
-            metadata={'email': serializer.validated_data['email']},
+            metadata={'email': email},
             request=request
         )
         
-        return success_response(data=tokens, message='Login realizado com sucesso.')
+        try:
+            tokens = LoginUseCase(repo).execute(email=email, password=password)
+            
+            # Log de Sucesso
+            audit_log(
+                action='USER_LOGIN_SUCCESS', 
+                resource='users', 
+                metadata={'email': email},
+                request=request
+            )
+            
+            return success_response(data=tokens, message='Login realizado com sucesso.')
+            
+        except Exception as e:
+            # Log de Falha
+            audit_log(
+                action='USER_LOGIN_FAILURE', 
+                resource='users', 
+                metadata={'email': email, 'error': str(e)},
+                request=request
+            )
+            raise e
 
 
 class LogoutView(APIView):
@@ -107,12 +144,18 @@ class VerifyEmailView(APIView):
     @extend_schema(tags=['Autenticação'])
     def get(self, request, token: str):
         repo = DjangoUserRepository()
-        VerifyEmailUseCase(repo).execute(token=token)
+        # Log de tentativa
+        audit_log(action='USER_VERIFY_EMAIL_ATTEMPT', resource='users', metadata={'token': token}, request=request)
         
-        # Auditoria
-        audit_log(action='USER_VERIFY_EMAIL', resource='users', metadata={'token': token}, request=request)
-        
-        return success_response(message='Email verificado com sucesso. Já pode fazer login.')
+        try:
+            VerifyEmailUseCase(repo).execute(token=token)
+            # Log de Sucesso
+            audit_log(action='USER_VERIFY_EMAIL_SUCCESS', resource='users', metadata={'token': token}, request=request)
+            return success_response(message='Email verificado com sucesso. Já pode fazer login.')
+        except Exception as e:
+            # Log de Falha
+            audit_log(action='USER_VERIFY_EMAIL_FAILURE', resource='users', metadata={'token': token, 'error': str(e)}, request=request)
+            raise e
 
 
 class ForgotPasswordView(APIView):
@@ -142,15 +185,23 @@ class ResetPasswordView(APIView):
         repo = DjangoUserRepository()
         serializer = ResetPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        ResetPasswordUseCase(repo).execute(
-            token=serializer.validated_data['token'],
-            new_password=serializer.validated_data['new_password'],
-        )
+        token = serializer.validated_data['token']
         
-        # Auditoria
-        audit_log(action='USER_RESET_PASSWORD', resource='users', metadata={'token': serializer.validated_data['token']}, request=request)
+        # Log de tentativa
+        audit_log(action='USER_RESET_PASSWORD_ATTEMPT', resource='users', metadata={'token': token}, request=request)
         
-        return success_response(message='Senha alterada com sucesso. Já pode fazer login.')
+        try:
+            ResetPasswordUseCase(repo).execute(
+                token=token,
+                new_password=serializer.validated_data['new_password'],
+            )
+            # Log de Sucesso
+            audit_log(action='USER_RESET_PASSWORD_SUCCESS', resource='users', metadata={'token': token}, request=request)
+            return success_response(message='Senha alterada com sucesso. Já pode fazer login.')
+        except Exception as e:
+            # Log de Falha
+            audit_log(action='USER_RESET_PASSWORD_FAILURE', resource='users', metadata={'token': token, 'error': str(e)}, request=request)
+            raise e
 
 
 # ─────────────────────────────────────────────
@@ -169,28 +220,28 @@ class MeView(APIView):
     @extend_schema(request=UpdateProfileSerializer, tags=['Perfil'])
     def patch(self, request):
         repo = DjangoUserRepository()
-        # O serializer valida os dados, incluindo arquivos se presentes
         serializer = UpdateProfileSerializer(request.user, data=request.data, partial=True)
         serializer.is_valid(raise_exception=True)
         
-        # Executa o Use Case com os campos validados (que podem conter InMemoryUploadedFile)
-        updated_user = UpdateProfileUseCase(repo).execute(
-            user_id=request.user.id, 
-            **serializer.validated_data
-        )
+        fields = list(serializer.validated_data.keys())
+        # Log de tentativa
+        audit_log(action='USER_UPDATE_PROFILE_ATTEMPT', resource='users', metadata={'fields': fields}, request=request)
         
-        # Auditoria
-        audit_log(
-            action='USER_UPDATE_PROFILE', 
-            resource='users', 
-            metadata={'fields': list(serializer.validated_data.keys())},
-            request=request
-        )
-        
-        return success_response(
-            data=UserProfileSerializer(updated_user).data,
-            message='Perfil actualizado com sucesso.'
-        )
+        try:
+            updated_user = UpdateProfileUseCase(repo).execute(
+                user_id=request.user.id, 
+                **serializer.validated_data
+            )
+            # Log de Sucesso
+            audit_log(action='USER_UPDATE_PROFILE_SUCCESS', resource='users', metadata={'fields': fields}, request=request)
+            return success_response(
+                data=UserProfileSerializer(updated_user).data,
+                message='Perfil actualizado com sucesso.'
+            )
+        except Exception as e:
+            # Log de Falha
+            audit_log(action='USER_UPDATE_PROFILE_FAILURE', resource='users', metadata={'fields': fields, 'error': str(e)}, request=request)
+            raise e
 
 
 class ChangePasswordView(APIView):

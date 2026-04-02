@@ -26,6 +26,10 @@ class IOfferRepository(ABC):
         pass
 
     @abstractmethod
+    def get_offer_by_id_for_update(self, offer_id: uuid.UUID) -> Optional[OfferEntity]:
+        pass
+
+    @abstractmethod
     def list_offers(self, filters: dict) -> List[OfferEntity]:
         pass
 
@@ -35,6 +39,10 @@ class IOfferRepository(ABC):
 
     @abstractmethod
     def get_interest_by_id(self, interest_id: uuid.UUID) -> Optional[OfferInterestEntity]:
+        pass
+
+    @abstractmethod
+    def get_interest_by_id_for_update(self, interest_id: uuid.UUID) -> Optional[OfferInterestEntity]:
         pass
 
     @abstractmethod
