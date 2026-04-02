@@ -1,7 +1,7 @@
 from typing import Optional, List
 import uuid
 from django.db import transaction
-from .models import (
+from ..models import (
     Transaction as DjangoTransaction,
     TransactionReview as DjangoTransactionReview
 )

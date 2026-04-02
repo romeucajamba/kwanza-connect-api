@@ -2,7 +2,7 @@ from typing import Optional, List
 import uuid
 from django.db import transaction
 from django.utils import timezone
-from .models import User as DjangoUser, UserSecurity as DjangoUserSecurity, IdentityDocument as DjangoIdentityDocument
+from ..models import User as DjangoUser, UserSecurity as DjangoUserSecurity, IdentityDocument as DjangoIdentityDocument
 from ..domain.entities import UserEntity, UserSecurityEntity, IdentityDocumentEntity
 from ..domain.interfaces import IUserRepository
 
