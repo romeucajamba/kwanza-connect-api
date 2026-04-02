@@ -26,6 +26,7 @@ from ..services.use_cases import (
 from ..infra.repositories import DjangoUserRepository
 from ..infra.email_service import TerminalEmailService
 from ..models import User
+from app.audit_service import audit_log
 
 
 # ─────────────────────────────────────────────
@@ -42,6 +43,16 @@ class RegisterView(APIView):
         serializer = RegisterSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         result = RegisterUserUseCase(repo, email_service).execute(**serializer.validated_data)
+        
+        # Auditoria
+        audit_log(
+            action='USER_REGISTER', 
+            resource='users', 
+            resource_id=result['id'], 
+            metadata={'email': result['email']},
+            request=request
+        )
+        
         return created_response(data=result, message='Conta criada com sucesso. Verifique o seu email.')
 
 
@@ -57,6 +68,15 @@ class LoginView(APIView):
             email=serializer.validated_data['email'],
             password=serializer.validated_data['password'],
         )
+        
+        # Auditoria
+        audit_log(
+            action='USER_LOGIN', 
+            resource='users', 
+            metadata={'email': serializer.validated_data['email']},
+            request=request
+        )
+        
         return success_response(data=tokens, message='Login realizado com sucesso.')
 
 
@@ -74,6 +94,10 @@ class LogoutView(APIView):
             token.blacklist()
         except Exception:
             pass  # token já inválido — não expor detalhes
+            
+        # Auditoria
+        audit_log(action='USER_LOGOUT', resource='users', request=request)
+        
         return success_response(message='Sessão terminada com sucesso.')
 
 
@@ -84,6 +108,10 @@ class VerifyEmailView(APIView):
     def get(self, request, token: str):
         repo = DjangoUserRepository()
         VerifyEmailUseCase(repo).execute(token=token)
+        
+        # Auditoria
+        audit_log(action='USER_VERIFY_EMAIL', resource='users', metadata={'token': token}, request=request)
+        
         return success_response(message='Email verificado com sucesso. Já pode fazer login.')
 
 
@@ -97,6 +125,10 @@ class ForgotPasswordView(APIView):
         serializer = ForgotPasswordSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         ForgotPasswordUseCase(repo, email_service).execute(email=serializer.validated_data['email'])
+        
+        # Auditoria
+        audit_log(action='USER_FORGOT_PASSWORD', resource='users', metadata={'email': serializer.validated_data['email']}, request=request)
+        
         return success_response(
             message='Se o email existir na plataforma, receberá um link de reset em breve.'
         )
@@ -114,6 +146,10 @@ class ResetPasswordView(APIView):
             token=serializer.validated_data['token'],
             new_password=serializer.validated_data['new_password'],
         )
+        
+        # Auditoria
+        audit_log(action='USER_RESET_PASSWORD', resource='users', metadata={'token': serializer.validated_data['token']}, request=request)
+        
         return success_response(message='Senha alterada com sucesso. Já pode fazer login.')
 
 
@@ -143,6 +179,14 @@ class MeView(APIView):
             **serializer.validated_data
         )
         
+        # Auditoria
+        audit_log(
+            action='USER_UPDATE_PROFILE', 
+            resource='users', 
+            metadata={'fields': list(serializer.validated_data.keys())},
+            request=request
+        )
+        
         return success_response(
             data=UserProfileSerializer(updated_user).data,
             message='Perfil actualizado com sucesso.'
@@ -162,6 +206,10 @@ class ChangePasswordView(APIView):
             current_password=serializer.validated_data['current_password'],
             new_password=serializer.validated_data['new_password'],
         )
+        
+        # Auditoria
+        audit_log(action='USER_CHANGE_PASSWORD', resource='users', request=request)
+        
         return success_response(message='Senha alterada com sucesso.')
 
 
@@ -196,6 +244,15 @@ class KYCSubmitView(APIView):
         serializer = IdentityDocumentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         SubmitKYCUseCase(repo).execute(user_id=request.user.id, doc_data=serializer.validated_data)
+        
+        # Auditoria
+        audit_log(
+            action='USER_SUBMIT_KYC', 
+            resource='users', 
+            metadata={'doc_type': serializer.validated_data.get('doc_type')},
+            request=request
+        )
+        
         return success_response(message='Documentos enviados. A análise demora até 48 horas.')
 
 

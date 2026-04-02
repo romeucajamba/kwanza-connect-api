@@ -11,6 +11,7 @@ from ..services.use_cases import ConfirmDealUseCase, ListUserTransactionsUseCase
 from ..infra.repositories import DjangoTransactionRepository
 from ..infra.services import DjangoOfferService, DjangoChatService, DjangoNotificationService
 import uuid
+from app.audit_service import audit_log
 from rest_framework.exceptions import NotFound
 
 
@@ -57,6 +58,16 @@ class TransactionConfirmView(APIView):
             room_id=uuid.UUID(room_id), 
             notes=notes
         )
+        
+        # Auditoria
+        audit_log(
+            action='TRANSACTION_CONFIRM', 
+            resource='transactions', 
+            resource_id=trans.id, 
+            metadata={'offer_id': offer_id, 'room_id': room_id},
+            request=request
+        )
+        
         return created_response(
             data=TransactionSerializer(trans).data,
             message='Transação confirmada e registada com sucesso.'
@@ -85,6 +96,16 @@ class TransactionReviewView(APIView):
             rating=rating,
             comment=comment
         )
+        
+        # Auditoria
+        audit_log(
+            action='TRANSACTION_REVIEW', 
+            resource='transactions', 
+            resource_id=transaction_id, 
+            metadata={'rating': rating},
+            request=request
+        )
+        
         return created_response(
             data=TransactionReviewSerializer(review).data,
             message='Avaliação registada com sucesso.'

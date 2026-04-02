@@ -25,6 +25,7 @@ from ..services.use_cases import (
 from ..infra.repositories import DjangoOfferRepository
 from ..infra.services import DjangoChatService, DjangoNotificationService
 import uuid
+from app.audit_service import audit_log
 
 
 # ─────────────────────────────────────────────
@@ -70,6 +71,16 @@ class OfferListCreateView(APIView):
         serializer = OfferCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         offer = CreateOfferUseCase(repo).execute(user_id=request.user.id, data=serializer.validated_data)
+        
+        # Auditoria
+        audit_log(
+            action='OFFER_CREATE', 
+            resource='offers', 
+            resource_id=offer.id, 
+            metadata={'give': offer.give_currency.code, 'amount': float(offer.amount)},
+            request=request
+        )
+        
         return created_response(
             data=OfferSerializer(offer).data,
             message='Oferta publicada com sucesso.'
@@ -109,6 +120,10 @@ class OfferPauseView(APIView):
     def post(self, request, offer_id: str):
         repo = DjangoOfferRepository()
         offer = PauseOfferUseCase(repo).execute(user_id=request.user.id, offer_id=uuid.UUID(offer_id))
+        
+        # Auditoria
+        audit_log(action='OFFER_PAUSE', resource='offers', resource_id=offer_id, request=request)
+        
         return success_response(message='Oferta pausada com sucesso.')
 
 
@@ -119,6 +134,10 @@ class OfferResumeView(APIView):
     def post(self, request, offer_id: str):
         repo = DjangoOfferRepository()
         offer = ResumeOfferUseCase(repo).execute(user_id=request.user.id, offer_id=uuid.UUID(offer_id))
+        
+        # Auditoria
+        audit_log(action='OFFER_RESUME', resource='offers', resource_id=offer_id, request=request)
+        
         return success_response(message='Oferta retomada com sucesso.')
 
 
@@ -129,6 +148,10 @@ class OfferCloseView(APIView):
     def post(self, request, offer_id: str):
         repo = DjangoOfferRepository()
         CloseOfferUseCase(repo).execute(user_id=request.user.id, offer_id=uuid.UUID(offer_id))
+        
+        # Auditoria
+        audit_log(action='OFFER_CLOSE', resource='offers', resource_id=offer_id, request=request)
+        
         return success_response(message='Oferta encerrada com sucesso.')
 
 
@@ -149,6 +172,16 @@ class ExpressInterestView(APIView):
             offer_id=uuid.UUID(offer_id),
             message=serializer.validated_data.get('message', ''),
         )
+        
+        # Auditoria
+        audit_log(
+            action='INTEREST_EXPRESS', 
+            resource='offers', 
+            resource_id=offer_id, 
+            metadata={'interest_id': interest.id},
+            request=request
+        )
+        
         return created_response(
             data=OfferInterestSerializer(interest).data,
             message='Interesse registado com sucesso. O vendedor será notificado.'
@@ -183,6 +216,16 @@ class AcceptInterestView(APIView):
             user_id=request.user.id, 
             interest_id=uuid.UUID(interest_id)
         )
+        
+        # Auditoria
+        audit_log(
+            action='INTEREST_ACCEPT', 
+            resource='offers', 
+            resource_id=interest_id, 
+            metadata={'room_id': room_id},
+            request=request
+        )
+        
         return success_response(
             data={'room_id': str(room_id)},
             message='Interesse aceite. A conversa foi iniciada.'

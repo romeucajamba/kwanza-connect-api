@@ -34,7 +34,7 @@ Este projeto foi idealizado e desenvolvido por **Romeu Cajamba**.
 O projeto foi totalmente refatorado seguindo os princípios de **Clean Architecture**, **SOLID** e **Clean Code**. Esta abordagem desacopla a lógica de negócio do framework (Django), facilitando a manutenção e a testabilidade.
 
 ### Estrutura de Pastas (por Módulo)
-Cada módulo (`users`, `offers`, `chat`, `notifications`, `rates`, `transactions`, `security`) segue rigorosamente este padrão:
+Cada módulo (`users`, `offers`, `chat`, `notifications`, `rates`, `transactions`, `security`, `audit`) segue rigorosamente este padrão:
 
 1. **`domain/` (Coração do Sistema)**:
    - `entities.py`: Classes Python puras (POPOs) que representam os conceitos reais.
@@ -77,7 +77,26 @@ A refatoração incluiu a criação de testes para todos os módulos críticos: 
 4. **Taxas Reais:** O sistema atualiza as taxas de câmbio mundiais a cada 5 minutos via Celery Beat para servir de referência.
 5. **Avaliação:** Após a conclusão de uma transação, ambos os participantes podem avaliar-se mutuamente (1 a 5 estrelas).
 6. **Recuperação de Conta:** Fluxo completo de "Esqueci a Senha" com tokens seguros e expiração de 2 horas.
-7. **Tempo Real:** Notificações e mensagens de chat são entregues via WebSockets instantaneamente.
+7. **Real-Time:** Notificações e mensagens de chat são entregues via WebSockets instantaneamente.
+8. **Auditoria:** Todas as ações críticas (Login, Registo, Criação de Oferta, Transação) são registadas na base de dados e no terminal em tempo real.
+9. **Segurança CORS:** A API está protegida e configurada para aceitar origens específicas (ex: Frontend React em `localhost:5173`).
+
+---
+
+## 📈 Auditoria e Monitorização
+O sistema agora inclui um módulo de auditoria centralizado que permite rastrear cada passo do utilizador:
+
+### Logs no Terminal
+Durante o desenvolvimento, verás saídas formatadas no terminal do servidor sempre que uma ação for realizada:
+```text
+[AUDIT LOG] 2026-04-02 04:15:00
+  Action: USER_LOGIN
+  Resource: users (N/A)
+  User: <uuid> | IP: 127.0.0.1
+```
+
+### Consultar via Admin
+Podes consultar o histórico completo de auditoria no Painel Administrativo em `/admin/audit/auditlog/`.
 
 ---
 
