@@ -24,6 +24,7 @@ urlpatterns = [
     path('api/notifications/', include('notifications.routes.urls')),
     path('api/rates/',         include('rates.routes.urls')),
     path('api/transactions/',  include('transactions.routes.urls')),
+    path('api/audit/',         include('audit.infra.urls')),
 ]
 
 # Servir media em desenvolvimento

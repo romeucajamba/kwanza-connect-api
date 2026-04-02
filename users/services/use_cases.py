@@ -16,9 +16,13 @@ from ..domain.entities import UserEntity, UserSecurityEntity, IdentityDocumentEn
 from ..domain.interfaces import IUserRepository
 from ..infra.email_service import IEmailService
 
+from audit.domain.interfaces import IAuditRepository
+from audit.services.use_cases import RegisterAuditLogUseCase
+
 class RegisterUserUseCase:
-    def __init__(self, repository: IUserRepository, email_service: IEmailService = None):
+    def __init__(self, repository: IUserRepository, audit_repo: IAuditRepository, email_service: IEmailService = None):
         self.repository = repository
+        self.audit_service = RegisterAuditLogUseCase(audit_repo)
         self.email_service = email_service
 
     def execute(self, email: str, password: str, full_name: str, **kwargs) -> dict:
@@ -80,6 +84,15 @@ class RegisterUserUseCase:
                 recipient=user.email
             )
 
+        # ── Auditoria ──────────────────────────────────────────────────
+        self.audit_service.execute(
+            action='user_registered',
+            resource='user',
+            user_id=user.id,
+            resource_id=str(user.id),
+            metadata={'email': email, 'kyc': 'submitted' if doc_type else 'pending'}
+        )
+
         return {
             'id': str(user.id),
             'email': user.email,
@@ -87,8 +100,9 @@ class RegisterUserUseCase:
         }
 
 class LoginUseCase:
-    def __init__(self, repository: IUserRepository, auth_service=None):
+    def __init__(self, repository: IUserRepository, audit_repo: IAuditRepository, auth_service=None):
         self.repository = repository
+        self.audit_service = RegisterAuditLogUseCase(audit_repo)
         self.auth_service = auth_service # TODO: Interface para autenticação
 
     def execute(self, email: str, password: str) -> dict:
@@ -130,6 +144,16 @@ class LoginUseCase:
         # Atualiza atividade
         user.update_last_seen()
         self.repository.save(user)
+
+        # ── Auditoria ──────────────────────────────────────────────────
+        # Nota: LoginUseCase ainda não tinha self.audit_service, preciso injetar no construtor
+        if hasattr(self, 'audit_service'):
+            self.audit_service.execute(
+                action='user_logged_in',
+                resource='auth',
+                user_id=user.id,
+                metadata={'method': 'jwt'}
+            )
 
         # Geração de tokens (Ainda dependente do SimpleJWT/Django no momento)
         from rest_framework_simplejwt.tokens import RefreshToken
