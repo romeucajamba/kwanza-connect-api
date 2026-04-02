@@ -18,6 +18,9 @@ Todas as requisições (exceto documentação) exigem os seguintes headers:
 
 ## 🔐 1. Autenticação (`/api/auth/`)
 
+> [!IMPORTANT]
+> **Auditoria:** Todas as rotas de autenticação (Registo, Login, Logout, Reset de Senha) são agora monitorizadas em tempo real. Tentativas de acesso indevido são registadas no terminal do servidor para segurança.
+
 ### Registro de Utilizador
 - **Endpoint:** `POST /api/auth/register/`
 - **Body:**

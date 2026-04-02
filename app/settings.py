@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     'rates',
     'transactions',
     'security',
+    'audit',
 ]
 
 # ─────────────────────────────────────────────
