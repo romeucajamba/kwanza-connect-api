@@ -6,6 +6,7 @@ from transactions.services.use_cases import ConfirmDealUseCase, IOfferService, I
 from transactions.domain.entities import TransactionEntity
 from transactions.domain.interfaces import ITransactionRepository
 
+@pytest.mark.django_db
 def test_confirm_deal_success():
     # Arrange
     mock_repo = Mock(spec=ITransactionRepository)

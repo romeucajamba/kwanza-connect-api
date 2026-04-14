@@ -14,8 +14,9 @@ def test_register_user_success():
         return user
     mock_repo.save.side_effect = side_effect_save
     mock_repo.get_security_by_user_id.return_value = None
+    mock_audit_repo = Mock()
     
-    use_case = RegisterUserUseCase(repository=mock_repo)
+    use_case = RegisterUserUseCase(repository=mock_repo, audit_repo=mock_audit_repo)
     email = "test@example.com"
     password = "password123"
     full_name = "Test User"
@@ -35,7 +36,8 @@ def test_register_user_already_exists():
     mock_repo = Mock(spec=IUserRepository)
     mock_repo.exists_by_email.return_value = True
     
-    use_case = RegisterUserUseCase(repository=mock_repo)
+    mock_audit_repo = Mock()
+    use_case = RegisterUserUseCase(repository=mock_repo, audit_repo=mock_audit_repo)
     
     # Act & Assert
     from rest_framework.exceptions import ValidationError

@@ -1,6 +1,6 @@
 import pytest
 import uuid
-from unittest.mock import Mock, patch
+from unittest.mock import Mock, patch, AsyncMock
 from chat.services.use_cases import SendMessageUseCase
 from chat.domain.interfaces import IChatRepository
 from app.services.websocket_service import ChannelsWebSocketService
@@ -11,6 +11,8 @@ from notifications.domain.interfaces import INotificationRepository
 def mock_channel_layer():
     with patch('app.services.websocket_service.get_channel_layer') as mock:
         layer = Mock()
+        layer.group_send = AsyncMock()
+        layer.send = AsyncMock()
         mock.return_value = layer
         yield layer
 

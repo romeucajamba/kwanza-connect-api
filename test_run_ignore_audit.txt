@@ -1,0 +1,567 @@
+﻿============================= test session starts =============================
+platform win32 -- Python 3.14.3, pytest-9.0.2, pluggy-1.6.0 -- C:\pfc\kwanzaConnect-project\kwanzaConnect-API\venv\Scripts\python.exe
+cachedir: .pytest_cache
+django: version: 5.0.14, settings: app.settings (from ini)
+rootdir: C:\pfc\kwanzaConnect-project\kwanzaConnect-API
+configfile: pytest.ini
+plugins: Faker-40.12.0, cov-7.1.0, django-4.12.0, mock-3.15.1
+collecting ... collected 20 items
+
+users/tests/e2e/test_auth.py::test_user_registration_e2e FAILED          [  5%]
+users/tests/e2e/test_auth.py::test_user_login_e2e FAILED                 [ 10%]
+app/tests/test_websocket_events.py::test_send_message_triggers_websocket FAILED [ 15%]
+app/tests/test_websocket_events.py::test_mark_notifications_read_triggers_websocket FAILED [ 20%]
+chat/tests/unit/test_use_cases.py::test_send_message_success PASSED      [ 25%]
+chat/tests/unit/test_use_cases.py::test_send_message_not_member PASSED   [ 30%]
+notifications/tests/unit/test_use_cases.py::test_mark_notification_read_success PASSED [ 35%]
+notifications/tests/unit/test_use_cases.py::test_mark_all_notifications_read PASSED [ 40%]
+offers/tests/unit/test_use_cases.py::test_create_offer_success PASSED    [ 45%]
+rates/tests/unit/test_use_cases.py::test_convert_amount_success PASSED   [ 50%]
+rates/tests/unit/test_use_cases.py::test_convert_amount_not_found PASSED [ 55%]
+security/tests/unit/test_use_cases.py::test_verify_api_key_success PASSED [ 60%]
+security/tests/unit/test_use_cases.py::test_verify_api_key_invalid PASSED [ 65%]
+tests/test_cloudinary.py::test_cloudinary PASSED                         [ 70%]
+tmp/test_audit_manual.py::test_audit FAILED                              [ 75%]
+transactions/tests/unit/test_use_cases.py::test_confirm_deal_success FAILED [ 80%]
+users/tests/unit/test_password_recovery.py::test_forgot_password_success PASSED [ 85%]
+users/tests/unit/test_password_recovery.py::test_reset_password_success FAILED [ 90%]
+users/tests/unit/test_use_cases.py::test_register_user_success FAILED    [ 95%]
+users/tests/unit/test_use_cases.py::test_register_user_already_exists FAILED [100%]
+
+================================== FAILURES ===================================
+_________________________ test_user_registration_e2e __________________________
+
+api_client = <rest_framework.test.APIClient object at 0x0000029B9C3841A0>
+
+    @pytest.mark.django_db
+    def test_user_registration_e2e(api_client):
+>       url = reverse('register')
+              ^^^^^^^^^^^^^^^^^^^
+
+users\tests\e2e\test_auth.py:8: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+venv\Lib\site-packages\django\urls\base.py:88: in reverse
+    return resolver._reverse_with_prefix(view, prefix, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <URLResolver 'app.urls' (None:None) '^/'>, lookup_view = 'register'
+_prefix = '/', args = (), kwargs = {}, possibilities = []
+
+    def _reverse_with_prefix(self, lookup_view, _prefix, *args, **kwargs):
+        if args and kwargs:
+            raise ValueError("Don't mix *args and **kwargs in call to reverse()!")
+    
+        if not self._populated:
+            self._populate()
+    
+        possibilities = self.reverse_dict.getlist(lookup_view)
+    
+        for possibility, pattern, defaults, converters in possibilities:
+            for result, params in possibility:
+                if args:
+                    if len(args) != len(params):
+                        continue
+                    candidate_subs = dict(zip(params, args))
+                else:
+                    if set(kwargs).symmetric_difference(params).difference(defaults):
+                        continue
+                    matches = True
+                    for k, v in defaults.items():
+                        if k in params:
+                            continue
+                        if kwargs.get(k, v) != v:
+                            matches = False
+                            break
+                    if not matches:
+                        continue
+                    candidate_subs = kwargs
+                # Convert the candidate subs to text using Converter.to_url().
+                text_candidate_subs = {}
+                match = True
+                for k, v in candidate_subs.items():
+                    if k in converters:
+                        try:
+                            text_candidate_subs[k] = converters[k].to_url(v)
+                        except ValueError:
+                            match = False
+                            break
+                    else:
+                        text_candidate_subs[k] = str(v)
+                if not match:
+                    continue
+                # WSGI provides decoded URLs, without %xx escapes, and the URL
+                # resolver operates on such URLs. First substitute arguments
+                # without quoting to build a decoded URL and look for a match.
+                # Then, if we have a match, redo the substitution with quoted
+                # arguments in order to return a properly encoded URL.
+                candidate_pat = _prefix.replace("%", "%%") + result
+                if re.search(
+                    "^%s%s" % (re.escape(_prefix), pattern),
+                    candidate_pat % text_candidate_subs,
+                ):
+                    # safe characters from `pchar` definition of RFC 3986
+                    url = quote(
+                        candidate_pat % text_candidate_subs,
+                        safe=RFC3986_SUBDELIMS + "/~:@",
+                    )
+                    # Don't allow construction of scheme relative urls.
+                    return escape_leading_slashes(url)
+        # lookup_view can be URL name or callable, but callables are not
+        # friendly in error messages.
+        m = getattr(lookup_view, "__module__", None)
+        n = getattr(lookup_view, "__name__", None)
+        if m is not None and n is not None:
+            lookup_view_s = "%s.%s" % (m, n)
+        else:
+            lookup_view_s = lookup_view
+    
+        patterns = [pattern for (_, pattern, _, _) in possibilities]
+        if patterns:
+            if args:
+                arg_msg = "arguments '%s'" % (args,)
+            elif kwargs:
+                arg_msg = "keyword arguments '%s'" % kwargs
+            else:
+                arg_msg = "no arguments"
+            msg = "Reverse for '%s' with %s not found. %d pattern(s) tried: %s" % (
+                lookup_view_s,
+                arg_msg,
+                len(patterns),
+                patterns,
+            )
+        else:
+            msg = (
+                "Reverse for '%(view)s' not found. '%(view)s' is not "
+                "a valid view function or pattern name." % {"view": lookup_view_s}
+            )
+>       raise NoReverseMatch(msg)
+E       django.urls.exceptions.NoReverseMatch: Reverse for 'register' not found. 'register' is not a valid view function or pattern name.
+
+venv\Lib\site-packages\django\urls\resolvers.py:851: NoReverseMatch
+---------------------------- Captured stderr setup ----------------------------
+Using existing test database for alias 'default'...
+
+_____________________________ test_user_login_e2e _____________________________
+
+api_client = <rest_framework.test.APIClient object at 0x0000029B9C8E0410>
+
+    @pytest.mark.django_db
+    def test_user_login_e2e(api_client):
+        # Setup: Create and verify user
+        email = 'loginuser@example.com'
+        password = 'Password123!'
+        user = User.objects.create_user(email=email, password=password, full_name='Login User')
+        user.is_active = True
+        user.save()
+    
+>       url = reverse('login')
+              ^^^^^^^^^^^^^^^^
+
+users\tests\e2e\test_auth.py:30: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+venv\Lib\site-packages\django\urls\base.py:88: in reverse
+    return resolver._reverse_with_prefix(view, prefix, *args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <URLResolver 'app.urls' (None:None) '^/'>, lookup_view = 'login'
+_prefix = '/', args = (), kwargs = {}, possibilities = []
+
+    def _reverse_with_prefix(self, lookup_view, _prefix, *args, **kwargs):
+        if args and kwargs:
+            raise ValueError("Don't mix *args and **kwargs in call to reverse()!")
+    
+        if not self._populated:
+            self._populate()
+    
+        possibilities = self.reverse_dict.getlist(lookup_view)
+    
+        for possibility, pattern, defaults, converters in possibilities:
+            for result, params in possibility:
+                if args:
+                    if len(args) != len(params):
+                        continue
+                    candidate_subs = dict(zip(params, args))
+                else:
+                    if set(kwargs).symmetric_difference(params).difference(defaults):
+                        continue
+                    matches = True
+                    for k, v in defaults.items():
+                        if k in params:
+                            continue
+                        if kwargs.get(k, v) != v:
+                            matches = False
+                            break
+                    if not matches:
+                        continue
+                    candidate_subs = kwargs
+                # Convert the candidate subs to text using Converter.to_url().
+                text_candidate_subs = {}
+                match = True
+                for k, v in candidate_subs.items():
+                    if k in converters:
+                        try:
+                            text_candidate_subs[k] = converters[k].to_url(v)
+                        except ValueError:
+                            match = False
+                            break
+                    else:
+                        text_candidate_subs[k] = str(v)
+                if not match:
+                    continue
+                # WSGI provides decoded URLs, without %xx escapes, and the URL
+                # resolver operates on such URLs. First substitute arguments
+                # without quoting to build a decoded URL and look for a match.
+                # Then, if we have a match, redo the substitution with quoted
+                # arguments in order to return a properly encoded URL.
+                candidate_pat = _prefix.replace("%", "%%") + result
+                if re.search(
+                    "^%s%s" % (re.escape(_prefix), pattern),
+                    candidate_pat % text_candidate_subs,
+                ):
+                    # safe characters from `pchar` definition of RFC 3986
+                    url = quote(
+                        candidate_pat % text_candidate_subs,
+                        safe=RFC3986_SUBDELIMS + "/~:@",
+                    )
+                    # Don't allow construction of scheme relative urls.
+                    return escape_leading_slashes(url)
+        # lookup_view can be URL name or callable, but callables are not
+        # friendly in error messages.
+        m = getattr(lookup_view, "__module__", None)
+        n = getattr(lookup_view, "__name__", None)
+        if m is not None and n is not None:
+            lookup_view_s = "%s.%s" % (m, n)
+        else:
+            lookup_view_s = lookup_view
+    
+        patterns = [pattern for (_, pattern, _, _) in possibilities]
+        if patterns:
+            if args:
+                arg_msg = "arguments '%s'" % (args,)
+            elif kwargs:
+                arg_msg = "keyword arguments '%s'" % kwargs
+            else:
+                arg_msg = "no arguments"
+            msg = "Reverse for '%s' with %s not found. %d pattern(s) tried: %s" % (
+                lookup_view_s,
+                arg_msg,
+                len(patterns),
+                patterns,
+            )
+        else:
+            msg = (
+                "Reverse for '%(view)s' not found. '%(view)s' is not "
+                "a valid view function or pattern name." % {"view": lookup_view_s}
+            )
+>       raise NoReverseMatch(msg)
+E       django.urls.exceptions.NoReverseMatch: Reverse for 'login' not found. 'login' is not a valid view function or pattern name.
+
+venv\Lib\site-packages\django\urls\resolvers.py:851: NoReverseMatch
+____________________ test_send_message_triggers_websocket _____________________
+
+mock_channel_layer = <Mock name='get_channel_layer()' id='2867365483184'>
+
+    def test_send_message_triggers_websocket(mock_channel_layer):
+        # Arrange
+        mock_repo = Mock(spec=IChatRepository)
+        ws_service = ChannelsWebSocketService()
+        use_case = SendMessageUseCase(mock_repo, ws_service)
+    
+        room_id = uuid.uuid4()
+        user_id = uuid.uuid4()
+    
+        mock_room = Mock()
+        mock_room.is_active.return_value = True
+        mock_repo.get_room_by_id.return_value = mock_room
+        mock_repo.get_member_by_room_and_user.return_value = Mock()
+    
+        saved_msg = Mock()
+        saved_msg.id = uuid.uuid4()
+        saved_msg.content = "Olß"
+        saved_msg.msg_type = "text"
+        saved_msg.created_at = None
+        mock_repo.save_message.return_value = saved_msg
+    
+        # Act
+>       use_case.execute(user_id, room_id, {"content": "Olß"})
+
+app\tests\test_websocket_events.py:39: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+chat\services\use_cases.py:85: in execute
+    self.ws_service.send_to_room(
+app\services\websocket_service.py:44: in send_to_room
+    async_to_sync(self.channel_layer.group_send)(
+venv\Lib\site-packages\asgiref\sync.py:325: in __call__
+    return call_result.result()
+           ^^^^^^^^^^^^^^^^^^^^
+C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\concurrent\futures\_base.py:443: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\concurrent\futures\_base.py:395: in __get_result
+    raise self._exception
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <asgiref.sync.AsyncToSync object at 0x0000029B9C4D0050>
+call_result = <Future at 0x29b9eabaf90 state=finished raised TypeError>
+exc_info = (None, None, None), task_context = None
+context = [<_contextvars.Context object at 0x0000029B9CDC03C0>]
+awaitable = <Mock name='get_channel_layer().group_send()' id='2867405238496'>
+
+    async def main_wrap(
+        self,
+        call_result: "Future[_R]",
+        exc_info: "OptExcInfo",
+        task_context: "Optional[List[asyncio.Task[Any]]]",
+        context: List[contextvars.Context],
+        awaitable: Union[Coroutine[Any, Any, _R], Awaitable[_R]],
+    ) -> None:
+        """
+        Wraps the awaitable with something that puts the result into the
+        result/exception future.
+        """
+    
+        __traceback_hide__ = True  # noqa: F841
+    
+        if context is not None:
+            _restore_context(context[0])
+    
+        current_task = asyncio.current_task()
+        if current_task is not None and task_context is not None:
+            task_context.append(current_task)
+    
+        try:
+            # If we have an exception, run the function inside the except block
+            # after raising it so exc_info is correctly populated.
+            if exc_info[1]:
+                try:
+                    raise exc_info[1]
+                except BaseException:
+                    result = await awaitable
+            else:
+>               result = await awaitable
+                         ^^^^^^^^^^^^^^^
+E               TypeError: 'Mock' object can't be awaited
+
+venv\Lib\site-packages\asgiref\sync.py:365: TypeError
+_______________ test_mark_notifications_read_triggers_websocket _______________
+
+mock_channel_layer = <Mock name='get_channel_layer()' id='2867405241184'>
+
+    def test_mark_notifications_read_triggers_websocket(mock_channel_layer):
+        # Arrange
+        mock_repo = Mock(spec=INotificationRepository)
+        ws_service = ChannelsWebSocketService()
+        use_case = MarkNotificationReadUseCase(mock_repo, ws_service)
+    
+        user_id = uuid.uuid4()
+>       mock_repo.get_unread_count.return_value = 5
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+app\tests\test_websocket_events.py:54: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <Mock spec='INotificationRepository' id='2867405238832'>
+name = 'get_unread_count'
+
+    def __getattr__(self, name):
+        if name in {'_mock_methods', '_mock_unsafe'}:
+            raise AttributeError(name)
+        elif self._mock_methods is not None:
+            if name not in self._mock_methods or name in _all_magics:
+>               raise AttributeError("Mock object has no attribute %r" % name)
+E               AttributeError: Mock object has no attribute 'get_unread_count'
+
+C:\Users\HP\AppData\Local\Programs\Python\Python314\Lib\unittest\mock.py:696: AttributeError
+_________________________________ test_audit __________________________________
+
+    def test_audit():
+        print("--- Testing Audit Log ---")
+        action = "MANUAL_TEST"
+        resource = "test_system"
+    
+        # Chama o helper
+        result = audit_log(
+            action=action,
+            resource=resource,
+            metadata={"info": "Running from scratch script"},
+        )
+    
+>       print(f"Audit Log ID: {result.id}")
+                               ^^^^^^^^^
+E       AttributeError: 'NoneType' object has no attribute 'id'
+
+tmp\test_audit_manual.py:24: AttributeError
+---------------------------- Captured stdout call -----------------------------
+--- Testing Audit Log ---
+
+[AUDIT LOG] 2026-04-14 18:18:16
+  Action: MANUAL_TEST
+  Resource: test_system (N/A)
+  Anonymous | IP: Local
+
+------------------------------ Captured log call ------------------------------
+ERROR    audit:use_cases.py:49 FAIL-SAFE: Erro ao gravar auditoria: Database access not allowed, use the "django_db" mark, or the "db" or "transactional_db" fixtures to enable it.
+__________________________ test_confirm_deal_success __________________________
+
+    def test_confirm_deal_success():
+        # Arrange
+        mock_repo = Mock(spec=ITransactionRepository)
+        mock_offer_service = Mock(spec=IOfferService)
+        mock_chat_service = Mock(spec=IChatService)
+        mock_notif_service = Mock(spec=INotificationService)
+    
+        offer_id = uuid.uuid4()
+        room_id = uuid.uuid4()
+        user_id = uuid.uuid4()
+        buyer_id = uuid.uuid4()
+        give_cur_id = uuid.uuid4()
+        want_cur_id = uuid.uuid4()
+    
+        mock_offer_service.get_offer_details.return_value = {
+            'id': offer_id,
+            'owner_id': user_id,
+            'give_currency_id': give_cur_id,
+            'give_amount': Decimal("100"),
+            'want_currency_id': want_cur_id,
+            'want_amount': Decimal("10"),
+            'exchange_rate_snapshot': Decimal("0.1")
+        }
+        mock_chat_service.get_other_participant.return_value = buyer_id
+    
+        def side_effect_save(tx):
+            return tx
+        mock_repo.save_transaction.side_effect = side_effect_save
+    
+        use_case = ConfirmDealUseCase(
+            repository=mock_repo,
+            offer_service=mock_offer_service,
+            chat_service=mock_chat_service,
+            notification_service=mock_notif_service
+        )
+    
+        # Act
+>       tx = use_case.execute(user_id=user_id, offer_id=offer_id, room_id=room_id)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+transactions\tests\unit\test_use_cases.py:46: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+transactions\services\use_cases.py:55: in execute
+    with transaction.atomic():
+         ^^^^^^^^^^^^^^^^^^^^
+venv\Lib\site-packages\django\db\transaction.py:198: in __enter__
+    if not connection.get_autocommit():
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <DatabaseWrapper vendor='postgresql' alias='default'>
+
+    def get_autocommit(self):
+        """Get the autocommit state."""
+>       self.ensure_connection()
+E       RuntimeError: Database access not allowed, use the "django_db" mark, or the "db" or "transactional_db" fixtures to enable it.
+
+venv\Lib\site-packages\django\db\backends\base\base.py:450: RuntimeError
+_________________________ test_reset_password_success _________________________
+
+    def test_reset_password_success():
+        # Arrange
+        mock_repo = Mock(spec=IUserRepository)
+        security_id = uuid.uuid4()
+        user_id = uuid.uuid4()
+    
+        # Simula token hashed
+        token = "raw_token"
+        import hashlib
+        hashed = hashlib.sha256(token.encode()).hexdigest()
+    
+        security = UserSecurityEntity(
+            id=security_id,
+            user_id=user_id,
+            password_reset_token=hashed,
+            password_reset_expires=datetime.now() + timedelta(hours=1)
+        )
+    
+        mock_repo.get_security_by_reset_token.return_value = security
+    
+        use_case = ResetPasswordUseCase(mock_repo)
+    
+        # Act
+        with patch('users.models.User.objects.get') as mock_get:
+            mock_django_user = Mock()
+            mock_get.return_value = mock_django_user
+    
+>           use_case.execute(token, "new_password_123")
+
+users\tests\unit\test_password_recovery.py:60: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+self = <users.services.use_cases.ResetPasswordUseCase object at 0x0000029B9E4E56A0>
+token = 'raw_token', new_password = 'new_password_123'
+
+    def execute(self, token: str, new_password: str) -> None:
+        hashed = hashlib.sha256(token.encode()).hexdigest()
+        security = self.repository.get_security_by_reset_token(hashed)
+    
+        if not security:
+             raise ValidationError('Token de recuperaþÒo invßlido ou expirado.')
+    
+        from django.utils import timezone
+>       if security.password_reset_expires and security.password_reset_expires < timezone.now():
+                                               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: can't compare offset-naive and offset-aware datetimes
+
+users\services\use_cases.py:342: TypeError
+_________________________ test_register_user_success __________________________
+
+    def test_register_user_success():
+        # Arrange
+        mock_repo = Mock(spec=IUserRepository)
+        mock_repo.exists_by_email.return_value = False
+    
+        def side_effect_save(user):
+            return user
+        mock_repo.save.side_effect = side_effect_save
+        mock_repo.get_security_by_user_id.return_value = None
+    
+>       use_case = RegisterUserUseCase(repository=mock_repo)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: RegisterUserUseCase.__init__() missing 1 required positional argument: 'audit_repo'
+
+users\tests\unit\test_use_cases.py:18: TypeError
+______________________ test_register_user_already_exists ______________________
+
+    def test_register_user_already_exists():
+        # Arrange
+        mock_repo = Mock(spec=IUserRepository)
+        mock_repo.exists_by_email.return_value = True
+    
+>       use_case = RegisterUserUseCase(repository=mock_repo)
+                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       TypeError: RegisterUserUseCase.__init__() missing 1 required positional argument: 'audit_repo'
+
+users\tests\unit\test_use_cases.py:38: TypeError
+============================== warnings summary ===============================
+app/tests/test_websocket_events.py::test_send_message_triggers_websocket
+  C:\pfc\kwanzaConnect-project\kwanzaConnect-API\venv\Lib\site-packages\asgiref\sync.py:608: UserWarning: async_to_sync was passed a non-async-marked callable
+    return AsyncToSync(
+
+tests/test_cloudinary.py::test_cloudinary
+  C:\pfc\kwanzaConnect-project\kwanzaConnect-API\venv\Lib\site-packages\_pytest\python.py:170: PytestReturnNotNoneWarning: Test functions should return None, but tests/test_cloudinary.py::test_cloudinary returned <class 'bool'>.
+  Did you mean to use `assert` instead of `return`?
+  See https://docs.pytest.org/en/stable/how-to/assert.html#return-not-none for more information.
+    warnings.warn(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ===========================
+FAILED users/tests/e2e/test_auth.py::test_user_registration_e2e - django.urls...
+FAILED users/tests/e2e/test_auth.py::test_user_login_e2e - django.urls.except...
+FAILED app/tests/test_websocket_events.py::test_send_message_triggers_websocket
+FAILED app/tests/test_websocket_events.py::test_mark_notifications_read_triggers_websocket
+FAILED tmp/test_audit_manual.py::test_audit - AttributeError: 'NoneType' obje...
+FAILED transactions/tests/unit/test_use_cases.py::test_confirm_deal_success
+FAILED users/tests/unit/test_password_recovery.py::test_reset_password_success
+FAILED users/tests/unit/test_use_cases.py::test_register_user_success - TypeE...
+FAILED users/tests/unit/test_use_cases.py::test_register_user_already_exists
+================== 9 failed, 11 passed, 2 warnings in 16.68s ==================

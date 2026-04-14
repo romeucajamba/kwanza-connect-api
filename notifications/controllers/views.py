@@ -12,6 +12,7 @@ from ..services.use_cases import (
     UpdateNotificationPreferencesUseCase, GetNotificationPreferencesUseCase
 )
 from ..infra.repositories import DjangoNotificationRepository
+from app.services.websocket_service import ChannelsWebSocketService
 import uuid
 
 
@@ -42,8 +43,9 @@ class NotificationMarkReadView(APIView):
     def post(self, request, notification_id: str = None):
         """Marca uma ou todas as notificações como lidas."""
         repo = DjangoNotificationRepository()
+        ws_service = ChannelsWebSocketService()
         notif_id = uuid.UUID(notification_id) if notification_id else None
-        MarkNotificationReadUseCase(repo).execute(
+        MarkNotificationReadUseCase(repo, ws_service).execute(
             user_id=request.user.id, 
             notification_id=notif_id
         )

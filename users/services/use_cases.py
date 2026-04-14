@@ -15,15 +15,17 @@ from rest_framework.exceptions import AuthenticationFailed, ValidationError, Not
 from ..domain.entities import UserEntity, UserSecurityEntity, IdentityDocumentEntity
 from ..domain.interfaces import IUserRepository
 from ..infra.email_service import IEmailService
+from app.services.storage import IStorageService
 
 from audit.domain.interfaces import IAuditRepository
 from audit.services.use_cases import RegisterAuditLogUseCase
 
 class RegisterUserUseCase:
-    def __init__(self, repository: IUserRepository, audit_repo: IAuditRepository, email_service: IEmailService = None):
+    def __init__(self, repository: IUserRepository, audit_repo: IAuditRepository, email_service: IEmailService = None, storage_service: IStorageService = None):
         self.repository = repository
         self.audit_service = RegisterAuditLogUseCase(audit_repo)
         self.email_service = email_service
+        self.storage_service = storage_service
 
     def execute(self, email: str, password: str, full_name: str, **kwargs) -> dict:
         if self.repository.exists_by_email(email):
@@ -54,6 +56,15 @@ class RegisterUserUseCase:
         back_image  = kwargs.get('back_image')
 
         if doc_type and doc_number:
+            # Upload das imagens se fornecidas (buffer ou arquivo vindo da view)
+            front_url = ""
+            back_url  = ""
+            if self.storage_service:
+                if front_image:
+                    front_url = self.storage_service.upload(front_image, f"kyc-{user.id}-front", folder="kyc")
+                if back_image:
+                    back_url = self.storage_service.upload(back_image, f"kyc-{user.id}-back", folder="kyc")
+
             doc = IdentityDocumentEntity(
                 id=uuid.uuid4(),
                 user_id=user.id,
@@ -61,8 +72,8 @@ class RegisterUserUseCase:
                 doc_number=doc_number,
                 doc_country=kwargs.get('country_code', 'AO'),
                 status='pending',
-                front_image=front_image,
-                back_image=back_image
+                front_image=front_url or front_image,
+                back_image=back_url or back_image
             )
             self.repository.save_kyc_document(doc)
             user.verification_status = 'submitted'
@@ -213,8 +224,9 @@ class ChangePasswordUseCase:
             self.repository.update_security(security)
 
 class UpdateProfileUseCase:
-    def __init__(self, repository: IUserRepository):
+    def __init__(self, repository: IUserRepository, storage_service: IStorageService = None):
         self.repository = repository
+        self.storage_service = storage_service
 
     def execute(self, user_id: uuid.UUID, **fields) -> UserEntity:
         user = self.repository.get_by_id(user_id)
@@ -227,14 +239,27 @@ class UpdateProfileUseCase:
             'preferred_want_currency', 'is_available',
         }
         update = {k: v for k, v in fields.items() if k in allowed}
+        
+        # Upload de avatar se fornecido
+        if 'avatar' in update and update['avatar'] and self.storage_service:
+            # Se for string (URL), ignoramos o upload. Se for bytes/file, fazemos upload.
+            if not isinstance(update['avatar'], str):
+                avatar_url = self.storage_service.upload(
+                    update['avatar'].read() if hasattr(update['avatar'], 'read') else update['avatar'],
+                    f"avatar-{user.id}",
+                    folder="avatars"
+                )
+                update['avatar'] = avatar_url
+
         for attr, val in update.items():
             setattr(user, attr, val)
             
         return self.repository.save(user)
 
 class SubmitKYCUseCase:
-    def __init__(self, repository: IUserRepository):
+    def __init__(self, repository: IUserRepository, storage_service: IStorageService = None):
         self.repository = repository
+        self.storage_service = storage_service
 
     def execute(self, user_id: uuid.UUID, doc_data: dict) -> None:
         user = self.repository.get_by_id(user_id)
@@ -243,6 +268,21 @@ class SubmitKYCUseCase:
             
         if user.is_kyc_complete():
             raise ValidationError('Os documentos já foram aprovados.')
+
+        # Upload de fotos se presentes em doc_data
+        if self.storage_service:
+            if 'front_image' in doc_data and doc_data['front_image'] and not isinstance(doc_data['front_image'], str):
+                 doc_data['front_image'] = self.storage_service.upload(
+                     doc_data['front_image'].read() if hasattr(doc_data['front_image'], 'read') else doc_data['front_image'],
+                     f"kyc-{user_id}-front",
+                     folder="kyc"
+                 )
+            if 'back_image' in doc_data and doc_data['back_image'] and not isinstance(doc_data['back_image'], str):
+                 doc_data['back_image'] = self.storage_service.upload(
+                     doc_data['back_image'].read() if hasattr(doc_data['back_image'], 'read') else doc_data['back_image'],
+                     f"kyc-{user_id}-back",
+                     folder="kyc"
+                 )
 
         # Criação/Atualização da entidade de documento
         existing_doc = self.repository.get_kyc_document_by_user_id(user_id)

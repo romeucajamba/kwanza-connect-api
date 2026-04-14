@@ -1,6 +1,6 @@
 from dataclasses import dataclass, field
 from datetime import datetime
-from typing import Optional, List
+from typing import Optional, List, Any
 import uuid
 from decimal import Decimal
 
@@ -42,6 +42,9 @@ class OfferEntity:
     expires_at: Optional[datetime] = None
     created_at: Optional[datetime] = None
     updated_at: Optional[datetime] = None
+    owner: Optional[Any] = None
+    give_currency: Optional[Any] = None
+    want_currency: Optional[Any] = None
 
     def __post_init__(self):
         if self.give_amount and self.want_amount and not self.implied_rate:
@@ -72,3 +75,4 @@ class OfferInterestEntity:
     room_id: Optional[uuid.UUID] = None
     created_at: Optional[datetime] = None
     responded_at: Optional[datetime] = None
+    buyer: Optional[Any] = None

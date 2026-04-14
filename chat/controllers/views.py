@@ -12,6 +12,8 @@ from ..services.use_cases import (
     SendMessageUseCase, DeleteMessageUseCase
 )
 from ..infra.repositories import DjangoChatRepository
+from app.services.websocket_service import ChannelsWebSocketService
+from app.services.cloudinary_storage import CloudinaryStorageService
 import uuid
 from rest_framework.exceptions import NotFound
 
@@ -76,9 +78,11 @@ class MessageListView(APIView):
     @extend_schema(request=MessageCreateSerializer, tags=['Mensagens'])
     def post(self, request, room_id: str):
         repo = DjangoChatRepository()
+        ws_service = ChannelsWebSocketService()
+        storage_service = CloudinaryStorageService()
         serializer = MessageCreateSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        message = SendMessageUseCase(repo).execute(
+        message = SendMessageUseCase(repo, ws_service, storage_service).execute(
             user_id=request.user.id, 
             room_id=uuid.UUID(room_id), 
             data=serializer.validated_data

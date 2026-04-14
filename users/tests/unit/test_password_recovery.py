@@ -41,11 +41,12 @@ def test_reset_password_success():
     import hashlib
     hashed = hashlib.sha256(token.encode()).hexdigest()
     
+    from django.utils import timezone
     security = UserSecurityEntity(
         id=security_id, 
         user_id=user_id,
         password_reset_token=hashed,
-        password_reset_expires=datetime.now() + timedelta(hours=1)
+        password_reset_expires=timezone.now() + timedelta(hours=1)
     )
     
     mock_repo.get_security_by_reset_token.return_value = security
