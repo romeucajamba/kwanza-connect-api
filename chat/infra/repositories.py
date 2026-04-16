@@ -19,6 +19,15 @@ from ..domain.interfaces import IChatRepository
 class DjangoChatRepository(IChatRepository):
     
     def _room_to_entity(self, django_room: DjangoRoom) -> RoomEntity:
+        # Extract members and last message if they are prefetched or available
+        members = []
+        if hasattr(django_room, 'members_list'):
+            members = [self._member_to_entity(m) for m in django_room.members_list]
+        
+        last_msg = None
+        if hasattr(django_room, 'last_msg_obj'):
+            last_msg = self._message_to_entity(django_room.last_msg_obj)
+
         return RoomEntity(
             id=django_room.id,
             offer_id=django_room.offer_id,
@@ -26,18 +35,31 @@ class DjangoChatRepository(IChatRepository):
             status=django_room.status,
             created_at=django_room.created_at,
             closed_at=django_room.closed_at,
-            other_user=getattr(django_room, 'other_user_data', None)
+            other_user=getattr(django_room, 'other_user_data', None),
+            members=members,
+            last_message=last_msg,
+            unread_count=getattr(django_room, 'unread_count_val', 0)
         )
 
+
     def _member_to_entity(self, django_member: DjangoRoomMember) -> RoomMemberEntity:
+        user_data = None
+        if hasattr(django_member, 'user') and django_member.user:
+            user_data = {
+                "id": str(django_member.user.id),
+                "full_name": django_member.user.full_name,
+                "avatar": django_member.user.avatar.url if django_member.user.avatar else None,
+            }
         return RoomMemberEntity(
             id=django_member.id,
             room_id=django_member.room_id,
             user_id=django_member.user_id,
             is_admin=django_member.is_admin,
             joined_at=django_member.joined_at,
-            last_read_at=django_member.last_read_at
+            last_read_at=django_member.last_read_at,
+            user=user_data
         )
+
 
     def _message_to_entity(self, django_message: DjangoMessage) -> MessageEntity:
         return MessageEntity(
@@ -53,8 +75,11 @@ class DjangoChatRepository(IChatRepository):
             is_deleted=django_message.is_deleted,
             is_edited=django_message.is_edited,
             created_at=django_message.created_at,
-            edited_at=django_message.edited_at
+            edited_at=django_message.edited_at,
+            room=django_message.room_id,
+            reply_to=django_message.reply_to_id
         )
+
 
     def save_room(self, room: RoomEntity) -> RoomEntity:
         django_room, created = DjangoRoom.objects.update_or_create(
@@ -70,9 +95,13 @@ class DjangoChatRepository(IChatRepository):
 
     def get_room_by_id(self, room_id: uuid.UUID) -> Optional[RoomEntity]:
         try:
-            return self._room_to_entity(DjangoRoom.objects.get(id=room_id))
+            r = DjangoRoom.objects.get(id=room_id)
+            r.members_list = list(DjangoRoomMember.objects.filter(room=r).select_related('user'))
+            r.last_msg_obj = DjangoMessage.objects.filter(room=r).order_by('-created_at').first()
+            return self._room_to_entity(r)
         except DjangoRoom.DoesNotExist:
             return None
+
 
     def list_user_rooms(self, user_id: uuid.UUID) -> List[RoomEntity]:
         # Busca todas as salas do utilizador
@@ -80,8 +109,13 @@ class DjangoChatRepository(IChatRepository):
         
         entities = []
         for r in rooms:
-            # Identifica o outro membro
-            other_member = DjangoRoomMember.objects.filter(room=r).exclude(user_id=user_id).select_related('user').first()
+            # Enriquecimento básico
+            r.members_list = list(DjangoRoomMember.objects.filter(room=r).select_related('user'))
+            r.last_msg_obj = DjangoMessage.objects.filter(room=r).order_by('-created_at').first()
+            r.unread_count_val = self.get_unread_count_for_user(r.id, user_id)
+
+            # Identifica o outro membro para resumo rápido
+            other_member = next((m for m in r.members_list if m.user_id != user_id), None)
             if other_member and other_member.user:
                 r.other_user_data = {
                     "id": str(other_member.user.id),
@@ -90,6 +124,7 @@ class DjangoChatRepository(IChatRepository):
                 }
             entities.append(self._room_to_entity(r))
         return entities
+
 
     def save_member(self, member: RoomMemberEntity) -> RoomMemberEntity:
         django_member, created = DjangoRoomMember.objects.update_or_create(

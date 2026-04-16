@@ -13,7 +13,11 @@ class RoomEntity:
     closed_at: Optional[datetime] = None
     
     # Metadata para o Frontend (Preenchido pelo Repositório)
-    other_user: Optional[Dict[str, Any]] = None
+    other_user:   Optional[Dict[str, Any]] = None
+    members:      List['RoomMemberEntity'] = field(default_factory=list)
+    last_message: Optional['MessageEntity'] = None
+    unread_count: int = 0
+
     
     def is_active(self) -> bool:
         return self.status == 'active'
@@ -26,6 +30,10 @@ class RoomMemberEntity:
     is_admin: bool = False
     joined_at: Optional[datetime] = None
     last_read_at: Optional[datetime] = None
+    
+    # Metadata (Preenchido pelo Repositório)
+    user: Optional[Dict[str, Any]] = None
+
 
 @dataclass
 class MessageEntity:
@@ -42,6 +50,11 @@ class MessageEntity:
     is_edited: bool = False
     created_at: Optional[datetime] = None
     edited_at: Optional[datetime] = None
+    
+    # Metadata para Serializer (Preenchido pelo Repositório)
+    room:     Optional[uuid.UUID] = None
+    reply_to: Optional[uuid.UUID] = None
+
 
 @dataclass
 class MessageReadEntity:

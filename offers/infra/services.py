@@ -23,30 +23,40 @@ class DjangoChatService(IChatService):
         return room.id
 
 class DjangoNotificationService(INotificationService):
-    def __init__(self):
-        self.ws_service = ChannelsWebSocketService()
-
     def notify_interest_accepted(self, buyer_id: uuid.UUID, offer_id: uuid.UUID, room_id: uuid.UUID) -> None:
-        from notifications.models import Notification
-        Notification.objects.create(
-            user_id=buyer_id,
-            type='interest_accepted',
-            payload={
-                'offer_id': str(offer_id),
-                'room_id':  str(room_id),
-                'message':  'O seu interesse foi aceite.',
-            }
-        )
-        self.ws_service.send_to_user(str(buyer_id), "new_notification", {"type": "interest_accepted"})
+        from notifications.services.notification_service import NotificationService
+        from notifications.models import NotificationType
+        from users.models import User
+        
+        try:
+            buyer = User.objects.get(id=buyer_id)
+            NotificationService.send(
+                recipient=buyer,
+                notification_type=NotificationType.INTEREST_ACCEPTED,
+                payload={
+                    'offer_id': str(offer_id),
+                    'room_id':  str(room_id),
+                    'redirect': f'/chat/{room_id}'
+                }
+            )
+        except User.DoesNotExist:
+            pass
 
     def notify_interest_rejected(self, buyer_id: uuid.UUID, offer_id: uuid.UUID) -> None:
-        from notifications.models import Notification
-        Notification.objects.create(
-            user_id=buyer_id,
-            type='interest_rejected',
-            payload={
-                'offer_id': str(offer_id),
-                'message':  'O seu interesse foi rejeitado.',
-            }
-        )
-        self.ws_service.send_to_user(str(buyer_id), "new_notification", {"type": "interest_rejected"})
+        from notifications.services.notification_service import NotificationService
+        from notifications.models import NotificationType
+        from users.models import User
+        
+        try:
+            buyer = User.objects.get(id=buyer_id)
+            NotificationService.send(
+                recipient=buyer,
+                notification_type=NotificationType.INTEREST_REJECTED,
+                payload={
+                    'offer_id': str(offer_id),
+                    'redirect': '/offers'
+                }
+            )
+        except User.DoesNotExist:
+            pass
+

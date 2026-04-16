@@ -6,48 +6,58 @@ from ..models import Room, Message, RoomMember, MessageRead, MessageReaction
 from users.infra.serializers import PublicUserSerializer
 
 
-class RoomMemberSerializer(serializers.ModelSerializer):
-    user = PublicUserSerializer(read_only=True)
-
-    class Meta:
-        model  = RoomMember
-        fields = ['id', 'user', 'is_admin', 'joined_at', 'last_read_at']
-
-
-class MessageSerializer(serializers.ModelSerializer):
-    sender = PublicUserSerializer(read_only=True)
-    # Como agora é URLField, não usamos mais .url
-    file_url = serializers.URLField(source='file', read_only=True)
-
-    class Meta:
-        model  = Message
-        fields = [
-            'id', 'room', 'sender', 'reply_to',
-            'msg_type', 'content', 'file', 'file_url',
-            'file_name', 'file_size', 'is_deleted', 'is_edited',
-            'created_at', 'edited_at'
-        ]
-        read_only_fields = ['id', 'sender', 'is_deleted', 'is_edited', 'created_at', 'edited_at']
+class RoomMemberSerializer(serializers.Serializer):
+    id           = serializers.UUIDField(read_only=True)
+    user         = PublicUserSerializer(read_only=True)
+    is_admin     = serializers.BooleanField(read_only=True)
+    joined_at    = serializers.DateTimeField(read_only=True)
+    last_read_at = serializers.DateTimeField(read_only=True)
 
 
-class RoomSerializer(serializers.ModelSerializer):
-    members = RoomMemberSerializer(many=True, read_only=True)
-    last_message = MessageSerializer(read_only=True)
+class MessageSerializer(serializers.Serializer):
+    id         = serializers.UUIDField(read_only=True)
+    room       = serializers.UUIDField(source='room_id', read_only=True)
+    sender     = PublicUserSerializer(read_only=True)
+    reply_to   = serializers.UUIDField(source='reply_to_id', read_only=True, allow_null=True)
+    msg_type   = serializers.CharField(read_only=True)
+    content    = serializers.CharField(read_only=True)
+    file       = serializers.URLField(read_only=True, allow_null=True)
+    file_url   = serializers.URLField(source='file', read_only=True, allow_null=True)
+    file_name  = serializers.CharField(read_only=True)
+    file_size  = serializers.IntegerField(read_only=True, allow_null=True)
+    is_deleted = serializers.BooleanField(read_only=True)
+    is_edited  = serializers.BooleanField(read_only=True)
+    created_at = serializers.DateTimeField(read_only=True)
+    edited_at  = serializers.DateTimeField(read_only=True, allow_null=True)
+
+
+
+class RoomSerializer(serializers.Serializer):
+    id           = serializers.UUIDField(read_only=True)
+    offer        = serializers.UUIDField(source='offer_id', read_only=True, allow_null=True)
+    room_type    = serializers.CharField(read_only=True)
+    status       = serializers.CharField(read_only=True)
+    members      = RoomMemberSerializer(many=True, read_only=True)
+    last_message = MessageSerializer(read_only=True, allow_null=True)
     unread_count = serializers.SerializerMethodField()
+    created_at   = serializers.DateTimeField(read_only=True)
+    closed_at    = serializers.DateTimeField(read_only=True, allow_null=True)
+    
+    # Adicional para resumo na lista
+    other_user   = serializers.JSONField(read_only=True, allow_null=True)
 
-    class Meta:
-        model  = Room
-        fields = [
-            'id', 'offer', 'room_type', 'status',
-            'members', 'last_message', 'unread_count',
-            'created_at', 'closed_at'
-        ]
 
     def get_unread_count(self, obj):
+        # Support for Entity
+        if hasattr(obj, 'unread_count'):
+            return obj.unread_count
+            
+        # Support for Model
         request = self.context.get('request')
-        if request and request.user.is_authenticated:
+        if request and request.user.is_authenticated and hasattr(obj, 'unread_count_for'):
             return obj.unread_count_for(request.user)
         return 0
+
 
 
 class MessageCreateSerializer(serializers.ModelSerializer):
