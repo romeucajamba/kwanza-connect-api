@@ -1,46 +1,104 @@
-# Documentação de Rotas - KwanzaConnect API (Postman)
+# Documentação Completa de Rotas - KwanzaConnect API (Postman)
 
-Este documento contém todas as rotas ativas na KwanzaConnect API, prontas para serem importadas no Postman. A aplicação base está hospedada em `http://localhost:8000/`. Lembre-se de adicionar o **Token JWT** no Header `Authorization: Bearer <seu_token>` e, se configurado, o Header `X-API-KEY`.
+Este documento contém **todas** as rotas atuais ativas na KwanzaConnect API, refletindo precisamente os *controllers* configurados. A aplicação base está hospedada em `http://localhost:8000/`. Todas as rotas protegidas exigem o **Token JWT** no Header `Authorization: Bearer <seu_token>` e, se configurado, o Header `X-API-KEY`.
 
-## 1. Utilizadores e Autenticação (`/api/auth/`)
+## 1. Módulo de Autenticação e Perfis (`/api/auth/`)
+> **Nota de Arquitetura:** Todas as rotas respeitantes ao Perfil do Utilizador e KYC estão neste momento mapeadas sob `/api/auth/` no sistema de roteamento (`app/urls.py`).
 
 | Rota | Método | Descrição |
 |---|---|---|
 | `/api/auth/register/` | **POST** | Registar um utilizador novo |
 | `/api/auth/login/` | **POST** | Autenticar utilizador e obter Tokens JWT |
-| `/api/auth/token/refresh/` | **POST** | Renovar Token de acesso usando Refresh Token |
 | `/api/auth/logout/` | **POST** | Invalidar tokens e encerrar sessão ativa |
+| `/api/auth/token/refresh/` | **POST** | Renovar Token de acesso usando Refresh Token |
 | `/api/auth/verify-email/<token>/` | **GET** | Confirmar e-mail |
 | `/api/auth/forgot-password/` | **POST** | Solicitar alteração de senha esquecida |
 | `/api/auth/reset-password/` | **POST** | Concluir o reset da senha |
-| `/api/auth/me/` | **GET** / **PUT** | Obter ou editar dados do perfil do próprio utilizador |
-| `/api/auth/me/change-password/` | **POST** | Alteração segura de senha de utilizador bloqueado |
+| `/api/auth/me/` | **GET** / **PATCH** | Obter ou editar dados do perfil do próprio utilizador |
+| `/api/auth/me/change-password/` | **POST** | Alteração segura de senha com a conta logada |
 | `/api/auth/users/<user_id>/` | **GET** | Ver perfil público de outro utilizador |
-| `/api/auth/kyc/submit/` | **POST** | Submeter dados e documentos para KYC |
-| `/api/auth/kyc/status/` | **GET** | Visualizar o estado do KYC |
+| `/api/auth/kyc/submit/` | **POST** | Submeter dados e documentos para KYC (`multipart/form-data`) |
+| `/api/auth/kyc/status/` | **GET** | Visualizar o estado da aprovação do KYC |
 
-### Payloads:
-**`POST /api/auth/register/`**
+## 2. Módulo de Ofertas de Câmbio (`/api/offers/`)
+
+| Rota | Método | Descrição |
+|---|---|---|
+| `/api/offers/currencies/` | **GET** | Listar moedas disponíveis no sistema |
+| `/api/offers/` | **GET** | Listar e pesquisar ofertas ativas (Feed Principal) |
+| `/api/offers/` | **POST** | Criar nova oferta de câmbio |
+| `/api/offers/mine/` | **GET** | Listar ofertas criadas por mim |
+| `/api/offers/<offer_id>/` | **GET** | Detalhes de uma oferta |
+| `/api/offers/<offer_id>/pause/` | **POST** | Pausar a minha oferta |
+| `/api/offers/<offer_id>/resume/` | **POST** | Retomar a minha oferta pausada |
+| `/api/offers/<offer_id>/close/` | **POST** | Encerrar a minha oferta definitivamente |
+| `/api/offers/<offer_id>/interests/` | **GET** | Ver utilizadores que expressaram interesse na minha oferta |
+| `/api/offers/<offer_id>/interest/` | **POST** | Manifestar intenção de câmbio na oferta de outro utilizador |
+| `/api/offers/interests/mine/` | **GET** | Listar as propostas/interesses enviados por mim |
+| `/api/offers/interests/<interest_id>/accept/` | **POST** | Aceitar propostar (Cria sala chat e bloqueia estado) |
+| `/api/offers/interests/<interest_id>/reject/` | **POST** | Rejeitar a intenção de um comprador |
+| `/api/offers/interests/<interest_id>/cancel/` | **POST** | Cancelar o meu próprio interesse numa oferta |
+
+## 3. Mensagens e Chat (`/api/chat/`)
+
+| Rota | Método | Descrição |
+|---|---|---|
+| `/api/chat/rooms/` | **GET** | Listar as minhas salas de conversa e últimos contactos |
+| `/api/chat/rooms/<room_id>/` | **GET** | Detalhes do negócio na sala selecionada |
+| `/api/chat/rooms/<room_id>/messages/` | **GET** | Histórico paginado de mensagens da sala |
+| `/api/chat/rooms/<room_id>/messages/` | **POST** | Enviar mensagem para a sala |
+| `/api/chat/messages/<message_id>/` | **GET** / **PUT** / **DELETE**| Gerir/Obter uma mensagem específica |
+
+## 4. Câmbios e Estatísticas (`/api/rates/`)
+
+| Rota | Método | Descrição |
+|---|---|---|
+| `/api/rates/` | **GET** | Obter tabela de taxas correntes oficiais |
+| `/api/rates/convert/?from=EUR&to=AOA&amount=150`| **GET** | Conversor rápido usando parâmetros Query |
+| `/api/rates/dashboard/` | **GET** | Obter estatísticas para o painel principal |
+
+## 5. Transações (`/api/transactions/`)
+
+| Rota | Método | Descrição |
+|---|---|---|
+| `/api/transactions/` | **GET** | Listar o meu histórico de transações |
+| `/api/transactions/<transaction_id>/` | **GET** | Visualizar detalhe e faturas de uma transação |
+| `/api/transactions/confirm/` | **POST** | Finalizar e selar um negócio (Match com Contraparte) |
+| `/api/transactions/<transaction_id>/review/` | **POST** | Avaliar e comentar a postura da contraparte pós-negócio |
+
+## 6. Notificações (`/api/notifications/`)
+
+| Rota | Método | Descrição |
+|---|---|---|
+| `/api/notifications/` | **GET** | Listar a timeline de alertas (`?unread=true` suportado) |
+| `/api/notifications/unread-count/` | **GET** | Contagem total do número de não lidas |
+| `/api/notifications/mark-read/` | **POST** | Marcar globalmente todas as notificações como lidas |
+| `/api/notifications/mark-read/<id>/` | **POST** | Marcar notificação especifica como lida |
+| `/api/notifications/preferences/` | **GET** / **PATCH**| Consultar e atualizar preferências (Emails, Push) |
+
+## 7. Logs de Auditoria (`/api/audit/logs/`)
+*(Apenas para Utilizadores Autorizados)*
+
+| Rota | Método | Descrição |
+|---|---|---|
+| `/api/audit/logs/` | **GET** | Histórico completo de auditoria para o sistema admin |
+| `/api/audit/logs/<id>/` | **GET** | Consultar estado capturado (Snapshot) no instante do evento |
+
+---
+
+## Exemplos de Payloads (JSON)
+
+### Auth - Registo (`POST /api/auth/register/`)
 ```json
 {
     "email": "teste@exemplo.com",
     "password": "MinhaSenhaForte123!",
-    "password_confirm": "MinhaSenhaForte123!",
     "full_name": "João Ninguém",
-    "phone": "+244923000000",
-    "country_code": "AO"
+    "phone": "+244923000000"
 }
 ```
 
-**`POST /api/auth/login/`**
-```json
-{
-    "email": "teste@exemplo.com",
-    "password": "MinhaSenhaForte123!"
-}
-```
-
-**`POST /api/auth/kyc/submit/` (Multipart/form-data recomendado)**
+### KYC - Submissão (`POST /api/auth/kyc/submit/`) - Via Form-Data
 ```json
 {
     "doc_type": "BI",
@@ -50,138 +108,28 @@ Este documento contém todas as rotas ativas na KwanzaConnect API, prontas para 
 }
 ```
 
----
-
-## 2. Ofertas de Câmbio (`/api/offers/`)
-
-| Rota | Método | Descrição |
-|---|---|---|
-| `/api/offers/currencies/` | **GET** | Listar moedas disponíveis no sistema |
-| `/api/offers/` | **GET** / **POST** | Listar ofertas ativas ou Criar Oferta |
-| `/api/offers/mine/` | **GET** | Listar ofertas criadas por mim |
-| `/api/offers/<offer_id>/` | **GET** | Detalhes de uma oferta |
-| `/api/offers/<offer_id>/pause/` | **POST** | Pausar a minha oferta |
-| `/api/offers/<offer_id>/resume/` | **POST** | Retomar a minha oferta |
-| `/api/offers/<offer_id>/close/` | **POST** | Encerrar a minha oferta definitivamente |
-| `/api/offers/<offer_id>/interests/` | **GET** | Listar utilizadores interessados nesta oferta |
-| `/api/offers/<offer_id>/interest/` | **POST** | Demonstrar intenção de câmbio (como comprador) |
-| `/api/offers/interests/mine/` | **GET** | Listar propostas/interesses submetidos por mim |
-| `/api/offers/interests/<interest_id>/accept/` | **POST** | Aceitar a intenção de um comprador (Cria sala chat) |
-| `/api/offers/interests/<interest_id>/reject/` | **POST** | Rejeitar a intenção de um comprador |
-
-### Payloads:
-**`POST /api/offers/`**
+### Criar Oferta (`POST /api/offers/`)
 ```json
 {
-    "give_currency_id": "<uuid_kwanza>",
+    "give_currency_code": "AOA",
+    "want_currency_code": "USD",
     "give_amount": "50000.00",
-    "want_currency_id": "<uuid_euro>",
     "want_amount": "50.00"
 }
 ```
 
-**`POST /api/offers/<offer_id>/interest/`**
+### Confirmar Transação (`POST /api/transactions/confirm/`)
 ```json
 {
-    "notes": "Tenho o valor exato, podemos fazer agora."
+    "offer": "<id_da_oferta>",
+    "room": "<id_da_sala_de_chat>"
 }
 ```
 
----
-
-## 3. Mensagens e Chat (`/api/chat/`)
-
-| Rota | Método | Descrição |
-|---|---|---|
-| `/api/chat/rooms/` | **GET** | Listar as minhas salas de conversa |
-| `/api/chat/rooms/<room_id>/` | **GET** | Detalhe da sala e informações do outro utilizador |
-| `/api/chat/rooms/<room_id>/messages/` | **GET** / **POST** | Listar mensagens ou Enviar mensagem |
-| `/api/chat/messages/<message_id>/` | **PUT** / **DELETE**| Editar ou apagar uma mensagem (soft delete) |
-
-### Payloads:
-**`POST /api/chat/rooms/<room_id>/messages/`**
-```json
-{
-    "content": "Olá, queres efetuar a transferência já?",
-    "msg_type": "text"
-}
-```
-
----
-
-## 4. Transações (`/api/transactions/`)
-
-| Rota | Método | Descrição |
-|---|---|---|
-| `/api/transactions/` | **GET** | Listar transações ocorridas |
-| `/api/transactions/<transaction_id>/` | **GET** | Detalhes e Status da transacção |
-| `/api/transactions/confirm/` | **POST** | Pressionar botão de selar o acordo (Match e Fecho de Oferta) |
-| `/api/transactions/<transaction_id>/review/` | **POST** | Avaliar e adicionar review após negócio concluído |
-
-### Payloads:
-**`POST /api/transactions/confirm/`**
-```json
-{
-    "offer_id": "<uuid_da_oferta>",
-    "room_id": "<uuid_da_sala_de_chat>"
-}
-```
-
-**`POST /api/transactions/<transaction_id>/review/`**
-```json
-{
-    "rating": 5,
-    "comment": "Foi rápido e eficiente!"
-}
-```
-
----
-
-## 5. Taxas de Câmbio (`/api/rates/`)
-
-| Rota | Método | Descrição |
-|---|---|---|
-| `/api/rates/` | **GET** | Obter tabela de taxas de câmbios em tempo real via Open Exchange Rates |
-| `/api/rates/convert/` | **POST** | Converter rapidamente entre duas moedas baseando na taxa |
-| `/api/rates/dashboard/` | **GET** | Status Geral da Plataforma (Usuários Ativos, Total Volume Negociado) |
-
-### Payloads:
-**`POST /api/rates/convert/`**
-```json
-{
-    "source_currency": "EUR",
-    "target_currency": "AOA",
-    "amount": "150.00"
-}
-```
-
----
-
-## 6. Notificações (`/api/notifications/`)
-
-| Rota | Método | Descrição |
-|---|---|---|
-| `/api/notifications/` | **GET** | Obter de notificações para o painel de alerta |
-| `/api/notifications/unread-count/` | **GET** | Número total de não lidas |
-| `/api/notifications/mark-read/` | **POST** | Marcar todas como lidas |
-| `/api/notifications/mark-read/<id>/` | **POST** | Marcar uma notificação específica como lida |
-| `/api/notifications/preferences/` | **GET** / **PUT**|  Gerir Push e E-mail de notificação |
-
-### Payloads:
-**`PUT /api/notifications/preferences/`**
+### Atualizar Preferências Notificações (`PATCH /api/notifications/preferences/`)
 ```json
 {
     "email_offers": true,
-    "push_messages": true
+    "push_messages": false
 }
 ```
-
----
-
-## 7. Registos de Auditoria (`/api/audit/logs/`)
-Esta rota é acessível apenas a utilizadores **Superadmin** (via painel superuser).
-
-| Rota | Método | Descrição |
-|---|---|---|
-| `/api/audit/logs/` | **GET** | Filtrar Log/Registo auditório paginado. Aceita filtro `?action=X` |
-| `/api/audit/logs/<id>/` | **GET** | Exibir todo o snapshot do log submetido |

@@ -38,7 +38,7 @@ class RegisterUserUseCase:
             email=email,
             full_name=full_name,
             password=password,
-            is_active=True, # Activado por padrão para facilitar o desenvolvimento
+            is_active=True,
             **kwargs
         )
         

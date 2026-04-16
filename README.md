@@ -138,22 +138,5 @@ celery -A app worker -l info
 ```
 
 ---
-
-## 🧪 Como Testar no Postman
-1. **Documentação Swagger:** Aceda a `http://localhost:8000/api/docs/` para ver todos os endpoints disponíveis.
-2. **Segurança (Obrigatório):**
-   - Todas as requisições à API agora exigem o header **`X-API-KEY`**.
-   - Podes gerar uma chave no Painel Administrativo (`/admin/security/apikey/`).
-   - No Postman, adiciona o Header: `X-API-KEY: kc_<prefix>.<secret>`.
-3. **Autenticação:**
-   - Faça POST em `/api/auth/register/` (com `X-API-KEY`) para criar conta.
-   - Faça POST em `/api/auth/login/` para obter os tokens `access` e `refresh`.
-   - No Postman, use o `access` token no Header como `Authorization: Bearer <seu_token>`.
-3. **Módulos:**
-   - **Ofertas:** GET `/api/offers/` para ver propostas.
-   - **Chat (WS):** Use a URL `ws://localhost:8000/ws/chat/<room_id>/` para testar WebSockets.
-
----
-
 ## 📜 Licença
 Este software é propriedade privada de **Romeu Cajamba**.
