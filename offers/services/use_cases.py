@@ -8,7 +8,9 @@ from typing import List, Optional
 from decimal import Decimal
 from datetime import datetime
 from django.db import transaction
+from django.utils import timezone
 from rest_framework.exceptions import ValidationError, NotFound, PermissionDenied
+
 
 from ..domain.entities import OfferEntity, OfferInterestEntity, CurrencyEntity
 from ..domain.interfaces import IOfferRepository
@@ -159,7 +161,8 @@ class AcceptInterestUseCase:
             
             interest.status = 'chat_open'
             interest.room_id = room_id
-            interest.responded_at = datetime.now()
+            interest.responded_at = timezone.now()
+
             self.repository.save_interest(interest)
 
             offer.status = 'dealing'

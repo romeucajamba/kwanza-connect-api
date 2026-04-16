@@ -99,6 +99,10 @@ class DjangoNotificationRepository(INotificationRepository):
             read_at=timezone.now()
         )
 
+    def get_unread_count(self, user_id: uuid.UUID) -> int:
+        return DjangoNotification.objects.filter(recipient_id=user_id, is_read=False).count()
+
+
     def save_preference(self, preference: NotificationPreferenceEntity) -> NotificationPreferenceEntity:
         # We use user_id as the lookup for preference
         django_pref, created = DjangoNotificationPreference.objects.update_or_create(

@@ -76,3 +76,5 @@ class OfferInterestEntity:
     created_at: Optional[datetime] = None
     responded_at: Optional[datetime] = None
     buyer: Optional[Any] = None
+    room: Optional[Any] = None
+

@@ -117,6 +117,12 @@ class DjangoOfferRepository(IOfferRepository):
                 preferred_want_currency=django_interest.buyer.preferred_want_currency,
             )
 
+        room_entity = None
+        if hasattr(django_interest, 'room') and django_interest.room:
+            # Simplificamos para evitar circularidade profunda ou retornar apenas ID se necessário
+            # Aqui podemos colocar a lógica de conversão de Room para Entity se disponível
+            room_entity = django_interest.room # Passamos o objecto por agora
+
         return OfferInterestEntity(
             id=django_interest.id,
             offer_id=django_interest.offer_id,
@@ -127,7 +133,9 @@ class DjangoOfferRepository(IOfferRepository):
             created_at=django_interest.created_at,
             responded_at=django_interest.responded_at,
             buyer=buyer_entity,
+            room=room_entity,
         )
+
 
     def get_currency_by_code(self, code: str) -> Optional[CurrencyEntity]:
         try:

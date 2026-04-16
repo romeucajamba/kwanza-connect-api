@@ -8,7 +8,8 @@ def on_interest_created(sender, instance, created, **kwargs):
     if not created:
         return
 
-    from .service import NotificationService
+    from .services.notification_service import NotificationService
+
     from .models  import NotificationType
 
     NotificationService.send(
@@ -32,7 +33,8 @@ def on_interest_status_changed(sender, instance, created, **kwargs):
     if created:
         return
 
-    from .service import NotificationService
+    from .services.notification_service import NotificationService
+
     from .models  import NotificationType
 
     if instance.status == 'chat_open':
@@ -77,7 +79,8 @@ def on_new_message(sender, instance, created, **kwargs):
     if not created or instance.msg_type == 'system':
         return
 
-    from .service import NotificationService
+    from .services.notification_service import NotificationService
+
     from .models  import NotificationType
 
     members = instance.room.members.exclude(user=instance.sender).select_related('user')
