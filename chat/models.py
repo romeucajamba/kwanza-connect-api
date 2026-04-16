@@ -124,8 +124,12 @@ class Message(models.Model):
     id         = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     room       = models.ForeignKey(Room, on_delete=models.CASCADE, related_name='messages')
     sender     = models.ForeignKey(
-        'users.User', on_delete=models.CASCADE, related_name='sent_messages'
+        'users.User', 
+        null=True, blank=True,
+        on_delete=models.CASCADE, 
+        related_name='sent_messages'
     )
+
     reply_to   = models.ForeignKey(
         'self', null=True, blank=True,
         on_delete=models.SET_NULL,

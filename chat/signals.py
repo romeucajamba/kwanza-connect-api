@@ -12,17 +12,11 @@ def log_room_created(sender, instance, created, **kwargs):
             event_type='room_created',
             payload={'room_type': instance.room_type}
         )
-        # Fix: System messages don't have a sender, but the model needs one (if not nullable).
-        # We use a None sender if nullable, or a system user if required.
-        # Since Message model's sender is NOT NULL, let's use the owner of the offer as the initial system message if available,
-        # or better, ensure system messages are handled properly.
-        # Original code had sender_id=None, which failed.
-        # I will use a placeholder or handle it via a system message flag if needed.
-        # For now, let's use the first member found or just skip it if we can't find one.
-        member = instance.members.first()
+        # System messages don't have a human sender. 
+        # Since we made Message.sender nullable, we can safely use None.
         Message.objects.create(
             room=instance,
-            sender=member.user if member else None, # This might still fail if not nullable
+            sender=None,
             msg_type='system',
             content='Conversa iniciada.'
         )
