@@ -12,8 +12,8 @@ Este documento contém **todas** as rotas atuais ativas na KwanzaConnect API, re
 | `/api/auth/logout/` | **POST** | Invalidar tokens e encerrar sessão ativa |
 | `/api/auth/token/refresh/` | **POST** | Renovar Token de acesso usando Refresh Token |
 | `/api/auth/verify-email/<token>/` | **GET** | Confirmar e-mail |
-| `/api/auth/forgot-password/` | **POST** | Solicitar alteração de senha esquecida |
-| `/api/auth/reset-password/` | **POST** | Concluir o reset da senha |
+| `/api/auth/forgot-password/` | **POST** | Solicitar recuperação de senha (senha esquecida) |
+| `/api/auth/reset-password/` | **POST** | Concluir o reset / recuperação da senha |
 | `/api/auth/me/` | **GET** / **PATCH** | Obter ou editar dados do perfil do próprio utilizador |
 | `/api/auth/me/change-password/` | **POST** | Alteração segura de senha com a conta logada |
 | `/api/auth/users/<user_id>/` | **GET** | Ver perfil público de outro utilizador |
@@ -95,6 +95,21 @@ Este documento contém **todas** as rotas atuais ativas na KwanzaConnect API, re
     "password": "MinhaSenhaForte123!",
     "full_name": "João Ninguém",
     "phone": "+244923000000"
+}
+```
+
+### Auth - Recuperar Senha (Forgot Password) (`POST /api/auth/forgot-password/`)
+```json
+{
+    "email": "teste@exemplo.com"
+}
+```
+
+### Auth - Concluir Recuperação (Reset Password) (`POST /api/auth/reset-password/`)
+```json
+{
+    "token": "<token_recebido_no_email>",
+    "new_password": "NovaSenhaSegura123!"
 }
 ```
 
