@@ -1,14 +1,470 @@
 [
-  {"model":"offers.currency","pk":"00000000-0000-0000-0000-000000000001",
-   "fields":{"code":"AOA","name":"Kwanza","symbol":"Kz","flag_emoji":"🇦🇴","is_active":true,"sort_order":1}},
-  {"model":"offers.currency","pk":"00000000-0000-0000-0000-000000000002",
-   "fields":{"code":"USD","name":"Dólar Americano","symbol":"$","flag_emoji":"🇺🇸","is_active":true,"sort_order":2}},
-  {"model":"offers.currency","pk":"00000000-0000-0000-0000-000000000003",
-   "fields":{"code":"EUR","name":"Euro","symbol":"€","flag_emoji":"🇪🇺","is_active":true,"sort_order":3}},
-  {"model":"offers.currency","pk":"00000000-0000-0000-0000-000000000004",
-   "fields":{"code":"GBP","name":"Libra Esterlina","symbol":"£","flag_emoji":"🇬🇧","is_active":true,"sort_order":4}},
-  {"model":"offers.currency","pk":"00000000-0000-0000-0000-000000000005",
-   "fields":{"code":"CNY","name":"Yuan Chinês","symbol":"¥","flag_emoji":"🇨🇳","is_active":true,"sort_order":5}},
-  {"model":"offers.currency","pk":"00000000-0000-0000-0000-000000000006",
-   "fields":{"code":"ZAR","name":"Rand Sul-Africano","symbol":"R","flag_emoji":"🇿🇦","is_active":true,"sort_order":6}}
+  {
+    "model": "offers.currency",
+    "pk": "64c58acf-82bb-54dd-94aa-3bf86ee1c270",
+    "fields": {
+      "code": "AOA",
+      "name": "Kwanza",
+      "symbol": "Kz",
+      "flag_emoji": "🇦🇴",
+      "is_active": true,
+      "sort_order": 1
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "dac75bd9-1dc3-57ba-92f3-5772d815fbfb",
+    "fields": {
+      "code": "USD",
+      "name": "Dólar Americano",
+      "symbol": "$",
+      "flag_emoji": "🇺🇸",
+      "is_active": true,
+      "sort_order": 2
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "0892b9d7-445f-5f30-ac46-129c435a6313",
+    "fields": {
+      "code": "EUR",
+      "name": "Euro",
+      "symbol": "€",
+      "flag_emoji": "🇪🇺",
+      "is_active": true,
+      "sort_order": 3
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "986de2ee-438d-5e13-b0ae-878a1709e7c3",
+    "fields": {
+      "code": "BRL",
+      "name": "Real",
+      "symbol": "R$",
+      "flag_emoji": "🇧🇷",
+      "is_active": true,
+      "sort_order": 4
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "6a94a686-9139-5c18-84e5-677c7b062026",
+    "fields": {
+      "code": "GBP",
+      "name": "Libra Esterlina",
+      "symbol": "£",
+      "flag_emoji": "🇬🇧",
+      "is_active": true,
+      "sort_order": 5
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "7d61f8e1-413d-5014-8bc5-e910520a0ff6",
+    "fields": {
+      "code": "ZAR",
+      "name": "Rand",
+      "symbol": "R",
+      "flag_emoji": "��🇦",
+      "is_active": true,
+      "sort_order": 6
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "e5ab4e4c-d554-5408-8198-e22d6ed8b48c",
+    "fields": {
+      "code": "MZN",
+      "name": "Metical",
+      "symbol": "MT",
+      "flag_emoji": "🇲🇿",
+      "is_active": true,
+      "sort_order": 7
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "bb7f4bf3-1d2e-5e94-832a-4fa7ddc9b8d8",
+    "fields": {
+      "code": "AED",
+      "name": "Dirham",
+      "symbol": "د.إ",
+      "flag_emoji": "🇦🇪",
+      "is_active": true,
+      "sort_order": 8
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "18e1bc63-2662-5d0a-9195-1ad6b1d39e16",
+    "fields": {
+      "code": "AFN",
+      "name": "Afegane",
+      "symbol": "؋",
+      "flag_emoji": "🇦🇫",
+      "is_active": true,
+      "sort_order": 9
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "7463cbb6-07cf-5887-9ff2-7dc6b983bd39",
+    "fields": {
+      "code": "ALL",
+      "name": "Lek",
+      "symbol": "L",
+      "flag_emoji": "🇦🇱",
+      "is_active": true,
+      "sort_order": 10
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "2f980ca8-057c-5f4a-8d0f-6c9da51f98a7",
+    "fields": {
+      "code": "ARS",
+      "name": "Peso Argentino",
+      "symbol": "$",
+      "flag_emoji": "🇦🇷",
+      "is_active": true,
+      "sort_order": 11
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "1ecca298-de79-5e80-a88a-8686569a2c8a",
+    "fields": {
+      "code": "AUD",
+      "name": "Dólar Australiano",
+      "symbol": "$",
+      "flag_emoji": "🇦🇺",
+      "is_active": true,
+      "sort_order": 12
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "4eb6cdd4-2d50-5a85-a599-80ad462c221d",
+    "fields": {
+      "code": "CAD",
+      "name": "Dólar Canadense",
+      "symbol": "$",
+      "flag_emoji": "🇨🇦",
+      "is_active": true,
+      "sort_order": 13
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "a674708e-9f3f-5ba1-b397-37d77fb3adba",
+    "fields": {
+      "code": "CHF",
+      "name": "Franco Suíço",
+      "symbol": "Fr.",
+      "flag_emoji": "🇨🇭",
+      "is_active": true,
+      "sort_order": 14
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "da2b5885-f5d9-5237-9b35-e869bdaeae09",
+    "fields": {
+      "code": "CLP",
+      "name": "Peso Chileno",
+      "symbol": "$",
+      "flag_emoji": "🇨🇱",
+      "is_active": true,
+      "sort_order": 15
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "5019e208-29a7-504e-8469-5f75d3fcdf9d",
+    "fields": {
+      "code": "CNY",
+      "name": "Yuan Renminbi",
+      "symbol": "¥",
+      "flag_emoji": "🇨🇳",
+      "is_active": true,
+      "sort_order": 16
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "e52d10f7-c57d-5d0b-99c0-643c76952d61",
+    "fields": {
+      "code": "COP",
+      "name": "Peso Colombiano",
+      "symbol": "$",
+      "flag_emoji": "🇨🇴",
+      "is_active": true,
+      "sort_order": 17
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "7da78b17-efa8-5869-9726-f6dcf76729df",
+    "fields": {
+      "code": "DKK",
+      "name": "Coroa Dinamarquesa",
+      "symbol": "kr",
+      "flag_emoji": "🇩🇰",
+      "is_active": true,
+      "sort_order": 18
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "4e800971-e7fc-558e-9ede-bccf1928b5da",
+    "fields": {
+      "code": "EGP",
+      "name": "Libra Egípcia",
+      "symbol": "£",
+      "flag_emoji": "🇪🇬",
+      "is_active": true,
+      "sort_order": 19
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "78cf6cb4-bbde-5d7a-9799-80d475d65de3",
+    "fields": {
+      "code": "HKD",
+      "name": "Dólar de Hong Kong",
+      "symbol": "$",
+      "flag_emoji": "🇭🇰",
+      "is_active": true,
+      "sort_order": 20
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "dd2bbe1e-3a84-560b-bbcf-420023b42f8e",
+    "fields": {
+      "code": "IDR",
+      "name": "Rupiah",
+      "symbol": "Rp",
+      "flag_emoji": "🇮🇩",
+      "is_active": true,
+      "sort_order": 21
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "db97d26a-1917-56e1-be51-41f6e9e8104d",
+    "fields": {
+      "code": "ILS",
+      "name": "Novo Shekel",
+      "symbol": "₪",
+      "flag_emoji": "🇮🇱",
+      "is_active": true,
+      "sort_order": 22
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "080420ca-f7b9-5e3b-8786-4e1aba174fc0",
+    "fields": {
+      "code": "INR",
+      "name": "Rupia Indiana",
+      "symbol": "₹",
+      "flag_emoji": "��🇳",
+      "is_active": true,
+      "sort_order": 23
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "5738ae77-1e38-5ceb-9657-c6c5b3c412f2",
+    "fields": {
+      "code": "JPY",
+      "name": "Iene",
+      "symbol": "¥",
+      "flag_emoji": "🇯🇵",
+      "is_active": true,
+      "sort_order": 24
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "e04c06bf-23ab-57e9-bafc-ca47c83eab28",
+    "fields": {
+      "code": "KRW",
+      "name": "Won",
+      "symbol": "₩",
+      "flag_emoji": "🇰��",
+      "is_active": true,
+      "sort_order": 25
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "324cdbc7-e133-5d3c-b0ea-1538f52d3404",
+    "fields": {
+      "code": "MXN",
+      "name": "Peso Mexicano",
+      "symbol": "$",
+      "flag_emoji": "🇲🇽",
+      "is_active": true,
+      "sort_order": 26
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "18388f9b-6b6e-5e5e-b15b-e199614aebb3",
+    "fields": {
+      "code": "NGN",
+      "name": "Naira",
+      "symbol": "₦",
+      "flag_emoji": "🇳🇬",
+      "is_active": true,
+      "sort_order": 27
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "fe6b8dfe-3aea-5fae-8e01-e14cae398219",
+    "fields": {
+      "code": "NOK",
+      "name": "Coroa Norueguesa",
+      "symbol": "kr",
+      "flag_emoji": "🇳🇴",
+      "is_active": true,
+      "sort_order": 28
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "5ddd887c-35d9-56a7-986f-264bed952d85",
+    "fields": {
+      "code": "NZD",
+      "name": "Dólar Neozelandês",
+      "symbol": "$",
+      "flag_emoji": "🇳🇿",
+      "is_active": true,
+      "sort_order": 29
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "27a9fec8-d1fd-5b46-b55d-a853e70ffa2f",
+    "fields": {
+      "code": "PEN",
+      "name": "Sol",
+      "symbol": "S/",
+      "flag_emoji": "🇵🇪",
+      "is_active": true,
+      "sort_order": 30
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "a92471f5-11f2-50ca-ab94-61cc67d9e00d",
+    "fields": {
+      "code": "PHP",
+      "name": "Peso Filipino",
+      "symbol": "₱",
+      "flag_emoji": "🇵🇭",
+      "is_active": true,
+      "sort_order": 31
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "304193e5-429b-5291-8f37-43eaded0db36",
+    "fields": {
+      "code": "PLN",
+      "name": "Zloty",
+      "symbol": "zł",
+      "flag_emoji": "🇵🇱",
+      "is_active": true,
+      "sort_order": 32
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "b5702257-caf2-5321-893e-6c80bf1e5506",
+    "fields": {
+      "code": "PYG",
+      "name": "Guarani",
+      "symbol": "₲",
+      "flag_emoji": "🇵🇾",
+      "is_active": true,
+      "sort_order": 33
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "643d8262-ecc3-5545-941b-f26e57d2ba00",
+    "fields": {
+      "code": "RUB",
+      "name": "Rublo",
+      "symbol": "₽",
+      "flag_emoji": "🇷🇺",
+      "is_active": true,
+      "sort_order": 34
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "dc557311-033f-5d1f-8c89-cc838fdd8d23",
+    "fields": {
+      "code": "SAR",
+      "name": "Riyal Saudita",
+      "symbol": "ر.س",
+      "flag_emoji": "🇸🇦",
+      "is_active": true,
+      "sort_order": 35
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "f10017ac-7318-59ff-8b25-bfcd6a0c5eb5",
+    "fields": {
+      "code": "THB",
+      "name": "Baht",
+      "symbol": "฿",
+      "flag_emoji": "🇹🇭",
+      "is_active": true,
+      "sort_order": 36
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "35015aa7-52d3-5db2-b55d-bd76dbc94507",
+    "fields": {
+      "code": "TRY",
+      "name": "Lira Turca",
+      "symbol": "₺",
+      "flag_emoji": "🇹🇷",
+      "is_active": true,
+      "sort_order": 37
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "27510350-b463-51d8-bad0-92af70c56b2c",
+    "fields": {
+      "code": "UYU",
+      "name": "Peso Uruguaio",
+      "symbol": "",
+      "flag_emoji": "🇺🇾",
+      "is_active": true,
+      "sort_order": 38
+    }
+  },
+  {
+    "model": "offers.currency",
+    "pk": "2725163d-b063-5de5-ad95-a4e8c723064d",
+    "fields": {
+      "code": "VND",
+      "name": "Dong",
+      "symbol": "₫",
+      "flag_emoji": "🇻🇳",
+      "is_active": true,
+      "sort_order": 39
+    }
+  }
 ]

@@ -134,7 +134,7 @@ class Message(models.Model):
 
     msg_type   = models.CharField(max_length=10, choices=MSG_TYPE, default='text')
     content    = models.TextField(blank=True)
-    file       = models.FileField(upload_to=message_file_upload_path, null=True, blank=True)
+    file       = models.URLField(max_length=500, null=True, blank=True)
     file_name  = models.CharField(max_length=255, blank=True)   # nome original do ficheiro
     file_size  = models.PositiveIntegerField(null=True, blank=True)  # bytes
 

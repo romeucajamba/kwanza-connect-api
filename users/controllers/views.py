@@ -25,6 +25,8 @@ from ..services.use_cases import (
 )
 from ..infra.repositories import DjangoUserRepository
 from ..infra.email_service import TerminalEmailService
+from audit.infra.repositories import DjangoAuditRepository
+from app.services.cloudinary_storage import CloudinaryStorageService
 from ..models import User
 from app.audit_service import audit_log
 
@@ -49,7 +51,9 @@ class RegisterView(APIView):
         audit_log(action='USER_REGISTER_ATTEMPT', resource='users', metadata={'email': email}, request=request)
         
         try:
-            result = RegisterUserUseCase(repo, email_service).execute(**serializer.validated_data)
+            audit_repo = DjangoAuditRepository()
+            storage_service = CloudinaryStorageService()
+            result = RegisterUserUseCase(repo, audit_repo, email_service, storage_service).execute(**serializer.validated_data)
             
             # Log de Sucesso
             audit_log(
@@ -94,7 +98,8 @@ class LoginView(APIView):
         )
         
         try:
-            tokens = LoginUseCase(repo).execute(email=email, password=password)
+            audit_repo = DjangoAuditRepository()
+            tokens = LoginUseCase(repo, audit_repo).execute(email=email, password=password)
             
             # Log de Sucesso
             audit_log(
@@ -228,7 +233,8 @@ class MeView(APIView):
         audit_log(action='USER_UPDATE_PROFILE_ATTEMPT', resource='users', metadata={'fields': fields}, request=request)
         
         try:
-            updated_user = UpdateProfileUseCase(repo).execute(
+            storage_service = CloudinaryStorageService()
+            updated_user = UpdateProfileUseCase(repo, storage_service).execute(
                 user_id=request.user.id, 
                 **serializer.validated_data
             )
@@ -292,9 +298,10 @@ class KYCSubmitView(APIView):
     @extend_schema(request=IdentityDocumentSerializer, tags=['KYC'])
     def post(self, request):
         repo = DjangoUserRepository()
+        storage_service = CloudinaryStorageService()
         serializer = IdentityDocumentSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        SubmitKYCUseCase(repo).execute(user_id=request.user.id, doc_data=serializer.validated_data)
+        SubmitKYCUseCase(repo, storage_service).execute(user_id=request.user.id, doc_data=serializer.validated_data)
         
         # Auditoria
         audit_log(

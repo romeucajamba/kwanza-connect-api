@@ -5,10 +5,11 @@ from users.models import User
 
 @pytest.mark.django_db
 def test_user_registration_e2e(api_client):
-    url = reverse('register')
+    url = reverse('auth-register')
     data = {
         'email': 'newuser@example.com',
         'password': 'Password123!',
+        'password_confirm': 'Password123!',
         'full_name': 'New User Test'
     }
     
@@ -27,7 +28,7 @@ def test_user_login_e2e(api_client):
     user.is_active = True
     user.save()
     
-    url = reverse('login')
+    url = reverse('auth-login')
     data = {
         'email': email,
         'password': password

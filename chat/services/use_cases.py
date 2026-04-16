@@ -10,6 +10,7 @@ from rest_framework.exceptions import ValidationError, NotFound, PermissionDenie
 from ..domain.entities import RoomEntity, RoomMemberEntity, MessageEntity
 from ..domain.interfaces import IChatRepository
 from app.services.websocket_service import IWebSocketService
+from app.services.storage import IStorageService
 
 class GetUserRoomsUseCase:
     def __init__(self, repository: IChatRepository):
@@ -31,9 +32,10 @@ class GetRoomMessagesUseCase:
         return self.repository.list_room_messages(room_id, limit, before)
 
 class SendMessageUseCase:
-    def __init__(self, repository: IChatRepository, ws_service: IWebSocketService = None):
+    def __init__(self, repository: IChatRepository, ws_service: IWebSocketService = None, storage_service: IStorageService = None):
         self.repository = repository
         self.ws_service = ws_service
+        self.storage_service = storage_service
 
     def execute(self, user_id: uuid.UUID, room_id: uuid.UUID, data: dict) -> MessageEntity:
         room = self.repository.get_room_by_id(room_id)
@@ -48,12 +50,32 @@ class SendMessageUseCase:
         if not room.is_active():
             raise ValidationError('Esta conversa está encerrada.')
 
+        file_url = data.get('file')
+        file_name = data.get('file_name', '')
+        file_size = data.get('file_size')
+
+        # Upload de ficheiro se fornecido como buffer/arquivo
+        if file_url and self.storage_service and not isinstance(file_url, str):
+            orig_name = getattr(file_url, 'name', 'file')
+            file_url = self.storage_service.upload(
+                file_url.read() if hasattr(file_url, 'read') else file_url,
+                f"chat-{room_id}-{uuid.uuid4().hex[:8]}",
+                folder=f"chat/{room_id}"
+            )
+            file_name = orig_name
+            # Se for imagem, forçamos o tipo se não estiver definido
+            if not data.get('msg_type') or data.get('msg_type') == 'text':
+                data['msg_type'] = 'image' if file_name.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')) else 'file'
+
         message = MessageEntity(
             id=uuid.uuid4(),
             room_id=room_id,
             sender_id=user_id,
             content=data.get('content', ''),
             msg_type=data.get('msg_type', 'text'),
+            file=file_url,
+            file_name=file_name,
+            file_size=file_size,
             reply_to_id=data.get('reply_to_id'),
         )
         saved_msg = self.repository.save_message(message)

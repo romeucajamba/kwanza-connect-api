@@ -22,6 +22,10 @@ class INotificationRepository(ABC):
         pass
 
     @abstractmethod
+    def get_unread_count(self, user_id: uuid.UUID) -> int:
+        pass
+
+    @abstractmethod
     def save_preference(self, preference: NotificationPreferenceEntity) -> NotificationPreferenceEntity:
         pass
 

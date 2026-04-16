@@ -1,7 +1,7 @@
 from typing import Optional, List
 import uuid
 from decimal import Decimal
-from django.db import transaction
+from django.db import transaction, models
 from django.utils import timezone
 from ..models import (
     Currency as DjangoCurrency, 
@@ -37,6 +37,38 @@ class DjangoOfferRepository(IOfferRepository):
         )
 
     def _offer_to_entity(self, django_offer: DjangoOffer) -> OfferEntity:
+        from users.domain.entities import UserEntity
+
+        owner_entity = None
+        if hasattr(django_offer, 'owner') and django_offer.owner:
+            owner_entity = UserEntity(
+                id=django_offer.owner.id,
+                email=django_offer.owner.email,
+                full_name=django_offer.owner.full_name,
+                is_active=django_offer.owner.is_active,
+                is_verified=django_offer.owner.is_verified,
+                is_available=django_offer.owner.is_available,
+                verification_status=django_offer.owner.verification_status,
+                phone=django_offer.owner.phone,
+                country_code=django_offer.owner.country_code,
+                city=django_offer.owner.city,
+                address=django_offer.owner.address,
+                occupation=django_offer.owner.occupation,
+                bio=django_offer.owner.bio,
+                avatar=django_offer.owner.avatar,
+                date_joined=django_offer.owner.date_joined,
+                preferred_give_currency=django_offer.owner.preferred_give_currency,
+                preferred_want_currency=django_offer.owner.preferred_want_currency,
+            )
+
+        give_currency_entity = None
+        if hasattr(django_offer, 'give_currency') and django_offer.give_currency:
+            give_currency_entity = self._currency_to_entity(django_offer.give_currency)
+
+        want_currency_entity = None
+        if hasattr(django_offer, 'want_currency') and django_offer.want_currency:
+            want_currency_entity = self._currency_to_entity(django_offer.want_currency)
+
         return OfferEntity(
             id=django_offer.id,
             owner_id=django_offer.owner_id,
@@ -54,10 +86,37 @@ class DjangoOfferRepository(IOfferRepository):
             implied_rate=django_offer.implied_rate,
             expires_at=django_offer.expires_at,
             created_at=django_offer.created_at,
-            updated_at=django_offer.updated_at
+            updated_at=django_offer.updated_at,
+            owner=owner_entity,
+            give_currency=give_currency_entity,
+            want_currency=want_currency_entity,
         )
 
     def _interest_to_entity(self, django_interest: DjangoOfferInterest) -> OfferInterestEntity:
+        from users.domain.entities import UserEntity
+
+        buyer_entity = None
+        if hasattr(django_interest, 'buyer') and django_interest.buyer:
+            buyer_entity = UserEntity(
+                id=django_interest.buyer.id,
+                email=django_interest.buyer.email,
+                full_name=django_interest.buyer.full_name,
+                is_active=django_interest.buyer.is_active,
+                is_verified=django_interest.buyer.is_verified,
+                is_available=django_interest.buyer.is_available,
+                verification_status=django_interest.buyer.verification_status,
+                phone=django_interest.buyer.phone,
+                country_code=django_interest.buyer.country_code,
+                city=django_interest.buyer.city,
+                address=django_interest.buyer.address,
+                occupation=django_interest.buyer.occupation,
+                bio=django_interest.buyer.bio,
+                avatar=django_interest.buyer.avatar,
+                date_joined=django_interest.buyer.date_joined,
+                preferred_give_currency=django_interest.buyer.preferred_give_currency,
+                preferred_want_currency=django_interest.buyer.preferred_want_currency,
+            )
+
         return OfferInterestEntity(
             id=django_interest.id,
             offer_id=django_interest.offer_id,
@@ -66,7 +125,8 @@ class DjangoOfferRepository(IOfferRepository):
             message=django_interest.message,
             room_id=django_interest.room_id,
             created_at=django_interest.created_at,
-            responded_at=django_interest.responded_at
+            responded_at=django_interest.responded_at,
+            buyer=buyer_entity,
         )
 
     def get_currency_by_code(self, code: str) -> Optional[CurrencyEntity]:

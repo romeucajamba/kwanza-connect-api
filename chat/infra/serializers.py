@@ -16,7 +16,8 @@ class RoomMemberSerializer(serializers.ModelSerializer):
 
 class MessageSerializer(serializers.ModelSerializer):
     sender = PublicUserSerializer(read_only=True)
-    file_url = serializers.CharField(source='file.url', read_only=True)
+    # Como agora é URLField, não usamos mais .url
+    file_url = serializers.URLField(source='file', read_only=True)
 
     class Meta:
         model  = Message
