@@ -77,9 +77,10 @@ class OfferListCreateView(APIView):
             action='OFFER_CREATE', 
             resource='offers', 
             resource_id=offer.id, 
-            metadata={'give': offer.give_currency.code, 'amount': float(offer.amount)},
+            metadata={'give': offer.give_currency.code, 'amount': float(offer.give_amount)},
             request=request
         )
+
         
         return created_response(
             data=OfferSerializer(offer).data,

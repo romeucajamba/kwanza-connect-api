@@ -21,22 +21,24 @@ class ExchangeRateSerializer(serializers.ModelSerializer):
         fields = ['from_currency', 'to_currency', 'rate', 'fetched_at']
 
 
-class OfferCreateSerializer(serializers.ModelSerializer):
-    class Meta:
-        model  = Offer
-        fields = [
-            'give_currency', 'give_amount',
-            'want_currency', 'want_amount',
-            'offer_type', 'notes',
-            'city', 'country_code', 'expires_at',
-        ]
+class OfferCreateSerializer(serializers.Serializer):
+    give_currency_code  = serializers.CharField(max_length=10)
+    give_amount         = serializers.DecimalField(max_digits=24, decimal_places=2)
+    want_currency_code  = serializers.CharField(max_length=10)
+    want_amount         = serializers.DecimalField(max_digits=24, decimal_places=2)
+    offer_type          = serializers.ChoiceField(choices=Offer.OFFER_TYPE, default='sell')
+    notes               = serializers.CharField(max_length=500, required=False, allow_blank=True)
+    city                = serializers.CharField(max_length=100, required=False, allow_blank=True)
+    country_code        = serializers.CharField(max_length=5, required=False, allow_blank=True)
+    expires_at          = serializers.DateTimeField(required=False, allow_null=True)
 
     def validate(self, data):
-        if data.get('give_currency') == data.get('want_currency'):
+        if data.get('give_currency_code') == data.get('want_currency_code'):
             raise serializers.ValidationError('As moedas de origem e destino não podem ser iguais.')
         if data.get('give_amount', 0) <= 0 or data.get('want_amount', 0) <= 0:
             raise serializers.ValidationError('Os valores têm de ser positivos.')
         return data
+
 
 
 class OfferSerializer(serializers.ModelSerializer):

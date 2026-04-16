@@ -131,7 +131,8 @@ class DjangoOfferRepository(IOfferRepository):
 
     def get_currency_by_code(self, code: str) -> Optional[CurrencyEntity]:
         try:
-            return self._currency_to_entity(DjangoCurrency.objects.get(code=code))
+            return self._currency_to_entity(DjangoCurrency.objects.get(code__iexact=code))
+
         except DjangoCurrency.DoesNotExist:
             return None
 
