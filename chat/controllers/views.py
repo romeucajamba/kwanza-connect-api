@@ -9,7 +9,8 @@ from app.pagination import StandardPagination
 from ..infra.serializers import RoomSerializer, MessageSerializer, MessageCreateSerializer
 from ..services.use_cases import (
     GetUserRoomsUseCase, GetRoomMessagesUseCase, 
-    SendMessageUseCase, DeleteMessageUseCase
+    SendMessageUseCase, DeleteMessageUseCase,
+    MarkRoomAsReadUseCase
 )
 from ..infra.repositories import DjangoChatRepository
 from app.services.websocket_service import ChannelsWebSocketService
@@ -104,3 +105,16 @@ class MessageDetailView(APIView):
             message_id=uuid.UUID(message_id)
         )
         return success_response(message='Mensagem apagada com sucesso.')
+
+
+class RoomMarkReadView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=['Mensagens'])
+    def post(self, request, room_id: str):
+        repo = DjangoChatRepository()
+        MarkRoomAsReadUseCase(repo).execute(
+            user_id=request.user.id, 
+            room_id=uuid.UUID(room_id)
+        )
+        return success_response(message='Sala marcada como lida.')
