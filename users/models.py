@@ -51,7 +51,8 @@ class User(AbstractBaseUser, PermissionsMixin):
     address             = models.CharField(max_length=255, blank=True)
     occupation          = models.CharField(max_length=100, blank=True)
     bio                 = models.TextField(max_length=300, blank=True)
-    avatar              = models.ImageField(upload_to=avatar_upload_path, null=True, blank=True)
+    avatar              = models.ImageField(upload_to=avatar_upload_path, null=True, blank=True, max_length=500)
+
 
     # --- Estado da conta ---
     is_active           = models.BooleanField(default=False)   # activado por email
@@ -124,9 +125,10 @@ class IdentityDocument(models.Model):
     doc_country  = models.CharField(max_length=5, default='AO')
 
     # Imagens ou PDF — obrigatório pelo menos frente + verso OU pdf
-    front_image  = models.ImageField(upload_to=doc_upload_path, null=True, blank=True)
-    back_image   = models.ImageField(upload_to=doc_upload_path, null=True, blank=True)
-    pdf_file     = models.FileField(upload_to=doc_upload_path, null=True, blank=True)
+    front_image  = models.ImageField(upload_to=doc_upload_path, null=True, blank=True, max_length=500)
+    back_image   = models.ImageField(upload_to=doc_upload_path, null=True, blank=True, max_length=500)
+    pdf_file     = models.FileField(upload_to=doc_upload_path, null=True, blank=True, max_length=500)
+
 
     status       = models.CharField(max_length=10, choices=STATUS, default='pending')
     rejection_reason = models.TextField(blank=True)
