@@ -153,15 +153,22 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
 # ─────────────────────────────────────────────
 
 class IdentityDocumentSerializer(serializers.ModelSerializer):
-    front_image = serializers.SerializerMethodField()
-    back_image  = serializers.SerializerMethodField()
-    pdf_file    = serializers.SerializerMethodField()
+    # Campos de escrita — aceitam o upload dos ficheiros
+    front_image = serializers.ImageField(required=False, allow_null=True)
+    back_image  = serializers.ImageField(required=False, allow_null=True)
+    pdf_file    = serializers.FileField(required=False, allow_null=True)
+
+    # Campos de leitura — devolvem a URL após upload
+    front_image_url = serializers.SerializerMethodField(read_only=True)
+    back_image_url  = serializers.SerializerMethodField(read_only=True)
+    pdf_file_url    = serializers.SerializerMethodField(read_only=True)
 
     class Meta:
         model  = IdentityDocument
         fields = [
             'id', 'doc_type', 'doc_number', 'doc_country',
             'front_image', 'back_image', 'pdf_file',
+            'front_image_url', 'back_image_url', 'pdf_file_url',
             'status', 'rejection_reason', 'submitted_at',
         ]
         read_only_fields = ['id', 'status', 'rejection_reason', 'submitted_at']
@@ -176,13 +183,13 @@ class IdentityDocumentSerializer(serializers.ModelSerializer):
         except Exception:
             return None
 
-    def get_front_image(self, obj):
+    def get_front_image_url(self, obj):
         return self._get_url(getattr(obj, 'front_image', None))
 
-    def get_back_image(self, obj):
+    def get_back_image_url(self, obj):
         return self._get_url(getattr(obj, 'back_image', None))
 
-    def get_pdf_file(self, obj):
+    def get_pdf_file_url(self, obj):
         return self._get_url(getattr(obj, 'pdf_file', None))
 
     def validate(self, data):

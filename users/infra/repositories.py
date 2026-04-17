@@ -211,20 +211,27 @@ class DjangoUserRepository(IUserRepository):
                 'reviewed_by_id': document.reviewed_by_id,
             }
         )
-        # Handle files with Cloudinary
+        # Handle files — either upload raw file objects or persist existing Cloudinary URLs
         def upload_field(field_name, prefix):
             field_val = getattr(document, field_name)
-            if field_val and not isinstance(field_val, str):
+            if not field_val:
+                return
+            if isinstance(field_val, str):
+                # Already a Cloudinary URL — persist directly
+                setattr(django_identity, field_name, field_val)
+            else:
+                # Raw file object — upload to Cloudinary
                 try:
-                    url = self.storage_service.upload(field_val.read(), f"{prefix}_{document.id}", folder="kyc")
+                    content = field_val.read() if hasattr(field_val, 'read') else field_val
+                    url = self.storage_service.upload(content, f"{prefix}_{document.id}", folder="kyc")
                     setattr(django_identity, field_name, url)
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"--- ERRO CLOUDINARY (KYC {field_name}): {e} ---")
 
         upload_field('front_image', 'kyc_front')
         upload_field('back_image', 'kyc_back')
         upload_field('pdf_file', 'kyc_pdf')
-        
+
         django_identity.save()
 
 
