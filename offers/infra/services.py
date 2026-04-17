@@ -6,6 +6,31 @@ class DjangoChatService(IChatService):
     def create_offer_room(self, offer_id: uuid.UUID, owner_id: uuid.UUID, buyer_id: uuid.UUID) -> uuid.UUID:
         from chat.models import Room, RoomMember, RoomEvent
         
+        # Procura uma sala existente (direct ou offer) entre estes dois utilizadores
+        # Evitamos criar múltiplas salas para o mesmo par de pessoas
+        rooms_owner = RoomMember.objects.filter(user_id=owner_id).values_list('room_id', flat=True)
+        existing_room = Room.objects.filter(
+            id__in=rooms_owner,
+            members__user_id=buyer_id
+        ).exclude(status='closed').distinct().first()
+
+
+
+        if existing_room:
+            # Reutiliza a sala existente
+            existing_room.offer_id = offer_id
+            existing_room.save(update_fields=['offer_id'])
+            
+            # Regista o novo interesse na sala existente
+            RoomEvent.objects.create(
+                room=existing_room,
+                actor_id=buyer_id,
+                event_type='deal_proposed',
+                payload={'offer_id': str(offer_id), 'reused': True}
+            )
+            return existing_room.id
+
+        # Se não existir, cria uma nova
         room = Room.objects.create(
             offer_id=offer_id,
             room_type='offer',
@@ -21,6 +46,7 @@ class DjangoChatService(IChatService):
             payload={'offer_id': str(offer_id)}
         )
         return room.id
+
 
 class DjangoNotificationService(INotificationService):
     def notify_interest_accepted(self, buyer_id: uuid.UUID, offer_id: uuid.UUID, room_id: uuid.UUID) -> None:

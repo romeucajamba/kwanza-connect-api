@@ -7,12 +7,12 @@ from drf_spectacular.utils import extend_schema, OpenApiParameter
 from app.exceptions import success_response, created_response
 from app.pagination import StandardPagination
 from ..infra.serializers import TransactionSerializer, TransactionReviewSerializer, TransactionCreateSerializer
-from ..services.use_cases import ConfirmDealUseCase, ListUserTransactionsUseCase, RateTransactionUseCase
+from ..services.use_cases import ConfirmDealUseCase, ListUserTransactionsUseCase, RateTransactionUseCase, ListUserReviewsUseCase
 from ..infra.repositories import DjangoTransactionRepository
 from ..infra.services import DjangoOfferService, DjangoChatService, DjangoNotificationService
 import uuid
 from app.audit_service import audit_log
-from rest_framework.exceptions import NotFound
+from rest_framework.exceptions import NotFound, ValidationError
 
 
 class TransactionListView(APIView):
@@ -124,4 +124,22 @@ class TransactionDetailView(APIView):
             raise NotFound('Transação não encontrada ou não pertence ao utilizador.')
         
         serializer = TransactionSerializer(trans)
+        return success_response(data=serializer.data)
+
+
+class ReviewListView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    @extend_schema(tags=['Transações'])
+    def get(self, request, user_id: str):
+        repo = DjangoTransactionRepository()
+        use_case = ListUserReviewsUseCase(repo)
+        
+        try:
+            user_uuid = uuid.UUID(user_id)
+        except ValueError:
+            raise ValidationError('ID de utilizador inválido.')
+
+        reviews = use_case.execute(user_id=user_uuid)
+        serializer = TransactionReviewSerializer(reviews, many=True)
         return success_response(data=serializer.data)

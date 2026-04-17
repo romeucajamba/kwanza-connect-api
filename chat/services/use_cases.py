@@ -90,8 +90,10 @@ class SendMessageUseCase:
                     "sender_id": str(user_id),
                     "content": saved_msg.content,
                     "msg_type": saved_msg.msg_type,
-                    "created_at": saved_msg.created_at.isoformat() if saved_msg.created_at else None
+                    "created_at": saved_msg.created_at.isoformat() if saved_msg.created_at else None,
+                    "sender": saved_msg.sender
                 }
+
             )
             
         return saved_msg

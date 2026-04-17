@@ -135,3 +135,10 @@ class RateTransactionUseCase:
         self.notification_service.notify_new_review(reviewed_id, reviewer_id, rating)
 
         return saved_review
+
+class ListUserReviewsUseCase:
+    def __init__(self, repository: ITransactionRepository):
+        self.repository = repository
+
+    def execute(self, user_id: uuid.UUID) -> List[TransactionReviewEntity]:
+        return self.repository.list_user_reviews_received(user_id)

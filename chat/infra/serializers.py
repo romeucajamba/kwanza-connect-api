@@ -18,6 +18,7 @@ class MessageSerializer(serializers.Serializer):
     id         = serializers.UUIDField(read_only=True)
     room       = serializers.UUIDField(source='room_id', read_only=True)
     sender     = PublicUserSerializer(read_only=True)
+    sender_id  = serializers.UUIDField(read_only=True)
     reply_to   = serializers.UUIDField(source='reply_to_id', read_only=True, allow_null=True)
     msg_type   = serializers.CharField(read_only=True)
     content    = serializers.CharField(read_only=True)
@@ -45,6 +46,8 @@ class RoomSerializer(serializers.Serializer):
     
     # Adicional para resumo na lista
     other_user   = serializers.JSONField(read_only=True, allow_null=True)
+    interest_id  = serializers.UUIDField(read_only=True, allow_null=True)
+
 
 
     def get_unread_count(self, obj):
