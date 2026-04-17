@@ -50,8 +50,9 @@ class DjangoChatRepository(IChatRepository):
             user_data = {
                 "id": str(django_member.user.id),
                 "full_name": django_member.user.full_name,
-                "avatar": django_member.user.avatar.url if django_member.user.avatar else None,
+                "avatar": self._get_absolute_url(django_member.user.avatar),
             }
+
         return RoomMemberEntity(
             id=django_member.id,
             room_id=django_member.room_id,
@@ -69,8 +70,9 @@ class DjangoChatRepository(IChatRepository):
             sender_data = {
                 "id": str(django_message.sender.id),
                 "full_name": django_message.sender.full_name,
-                "avatar": django_message.sender.avatar.url if django_message.sender.avatar else None,
+                "avatar": self._get_absolute_url(django_message.sender.avatar),
             }
+
         
         return MessageEntity(
             id=django_message.id,
@@ -78,8 +80,9 @@ class DjangoChatRepository(IChatRepository):
             sender_id=django_message.sender_id,
             msg_type=django_message.msg_type,
             content=django_message.content,
-            file=django_message.file.url if django_message.file else None,
+            file=self._get_absolute_url(django_message.file),
             file_name=django_message.file_name,
+
             file_size=django_message.file_size,
             reply_to_id=django_message.reply_to_id,
             is_deleted=django_message.is_deleted,
@@ -136,8 +139,9 @@ class DjangoChatRepository(IChatRepository):
                 r.other_user_data = {
                     "id": str(other_member.user.id),
                     "full_name": other_member.user.full_name,
-                    "avatar": other_member.user.avatar.url if other_member.user.avatar else None,
+                    "avatar": self._get_absolute_url(other_member.user.avatar),
                 }
+
             entities.append(self._room_to_entity(r))
         return entities
 
@@ -269,3 +273,28 @@ class DjangoChatRepository(IChatRepository):
         if last_read:
             qs = qs.filter(created_at__gt=last_read)
         return qs.count()
+
+    def _get_absolute_url(self, file_field) -> Optional[str]:
+        if not file_field:
+            return None
+        
+        try:
+            url = file_field.url
+            # Se for um link absoluto mas o Django prefixou com /media/ (ex: /media/https://...)
+            # Removemos o prefixo para retornar o URL limpo da nuvem
+            from django.conf import settings
+            media_url = getattr(settings, 'MEDIA_URL', '/media/')
+            if url.startswith(media_url) and ('http://' in url or 'https://' in url):
+                url = url.replace(media_url, '', 1)
+
+            # Se já for um URL absoluto (Cloudinary), retorna
+            if url.startswith(('http://', 'https://')):
+                return url
+                
+            # Fallback para local
+            base_url = getattr(settings, 'SITE_URL', 'http://localhost:8000')
+            return f"{base_url.rstrip('/')}{url}"
+        except Exception:
+            return None
+
+

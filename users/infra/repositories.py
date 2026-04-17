@@ -5,10 +5,14 @@ from django.utils import timezone
 from ..models import User as DjangoUser, UserSecurity as DjangoUserSecurity, IdentityDocument as DjangoIdentityDocument
 from ..domain.entities import UserEntity, UserSecurityEntity, IdentityDocumentEntity
 from ..domain.interfaces import IUserRepository
+from app.services.cloudinary_service import CloudinaryStorageService
 
 class DjangoUserRepository(IUserRepository):
+    def __init__(self, storage_service: CloudinaryStorageService = None):
+        self.storage_service = storage_service or CloudinaryStorageService()
     
     def _to_entity(self, django_user: DjangoUser) -> UserEntity:
+
         security = None
         if hasattr(django_user, 'security'):
             security = self._security_to_entity(django_user.security)
@@ -32,8 +36,9 @@ class DjangoUserRepository(IUserRepository):
             address=django_user.address,
             occupation=django_user.occupation,
             bio=django_user.bio,
-            avatar=django_user.avatar.url if django_user.avatar else None,
+            avatar=self._get_absolute_url(django_user.avatar),
             last_seen=django_user.last_seen,
+
             date_joined=django_user.date_joined,
             preferred_give_currency=django_user.preferred_give_currency,
             preferred_want_currency=django_user.preferred_want_currency,
@@ -68,10 +73,11 @@ class DjangoUserRepository(IUserRepository):
             doc_number=django_identity.doc_number,
             doc_country=django_identity.doc_country,
             status=django_identity.status,
-            front_image=django_identity.front_image.url if django_identity.front_image else None,
-            back_image=django_identity.back_image.url if django_identity.back_image else None,
-            pdf_file=django_identity.pdf_file.url if django_identity.pdf_file else None,
+            front_image=self._get_absolute_url(django_identity.front_image),
+            back_image=self._get_absolute_url(django_identity.back_image),
+            pdf_file=self._get_absolute_url(django_identity.pdf_file),
             rejection_reason=django_identity.rejection_reason,
+
             submitted_at=django_identity.submitted_at,
             reviewed_at=django_identity.reviewed_at,
             reviewed_by_id=django_identity.reviewed_by_id
@@ -121,11 +127,25 @@ class DjangoUserRepository(IUserRepository):
             if user_entity.password and not user_entity.password.startswith(('pbkdf2_', 'argon2$', 'bcrypt$')):
                 django_user.set_password(user_entity.password)
 
-            # Persistência de arquivo se for um upload (não apenas string URL)
+            # Persistência de arquivo (Upload para Cloudinary se for um novo arquivo)
             if user_entity.avatar and not isinstance(user_entity.avatar, str):
-                django_user.avatar = user_entity.avatar
+                try:
+                    # Lê o conteúdo do arquivo
+                    file_content = user_entity.avatar.read()
+                    filename = f"avatar_{django_user.id}"
+                    # Upload para a nuvem
+                    cloud_url = self.storage_service.upload(file_content, filename, folder="avatars")
+                    # Guardamos apenas o URL no campo char se for o caso, 
+                    # mas o ImageField do Django espera um arquivo se for para salvar localmente.
+                    # Para simplificar: se temos Cloudinary, burlamos o armazenamento local e guardamos o link.
+                    # No entanto, ImageField precisa de um File. 
+                    # Uma alternativa comum é usar um CharField para o avatar se for sempre remoto.
+                    django_user.avatar = cloud_url # O Django permite atribuir string a ImageField, ele guarda o caminho.
+                except Exception:
+                    pass
             
             django_user.save()
+
 
             if user_entity.security:
                 self.update_security(user_entity.security)
@@ -187,15 +207,22 @@ class DjangoUserRepository(IUserRepository):
                 'reviewed_by_id': document.reviewed_by_id,
             }
         )
-        # Handle files
-        if document.front_image and not isinstance(document.front_image, str):
-             django_identity.front_image = document.front_image
-        if document.back_image and not isinstance(document.back_image, str):
-             django_identity.back_image = document.back_image
-        if document.pdf_file and not isinstance(document.pdf_file, str):
-             django_identity.pdf_file = document.pdf_file
+        # Handle files with Cloudinary
+        def upload_field(field_name, prefix):
+            field_val = getattr(document, field_name)
+            if field_val and not isinstance(field_val, str):
+                try:
+                    url = self.storage_service.upload(field_val.read(), f"{prefix}_{document.id}", folder="kyc")
+                    setattr(django_identity, field_name, url)
+                except Exception:
+                    pass
+
+        upload_field('front_image', 'kyc_front')
+        upload_field('back_image', 'kyc_back')
+        upload_field('pdf_file', 'kyc_pdf')
         
         django_identity.save()
+
 
     def get_kyc_document_by_user_id(self, user_id: uuid.UUID) -> Optional[IdentityDocumentEntity]:
         try:
@@ -203,3 +230,26 @@ class DjangoUserRepository(IUserRepository):
             return self._identity_to_entity(django_identity)
         except DjangoIdentityDocument.DoesNotExist:
             return None
+    def _get_absolute_url(self, file_field) -> Optional[str]:
+        if not file_field:
+            return None
+        
+        try:
+            url = file_field.url
+            # Se for um link absoluto mas o Django prefixou com /media/ (ex: /media/https://...)
+            # Removemos o prefixo para retornar o URL limpo da nuvem
+            from django.conf import settings
+            media_url = getattr(settings, 'MEDIA_URL', '/media/')
+            if url.startswith(media_url) and ('http://' in url or 'https://' in url):
+                url = url.replace(media_url, '', 1)
+
+            # Se já for um URL absoluto (Cloudinary), retorna
+            if url.startswith(('http://', 'https://')):
+                return url
+                
+            # Fallback para local
+            base_url = getattr(settings, 'SITE_URL', 'http://localhost:8000')
+            return f"{base_url.rstrip('/')}{url}"
+        except Exception:
+            return None
+

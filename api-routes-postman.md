@@ -83,118 +83,128 @@ Este documento contém **todas** as rotas atuais ativas na KwanzaConnect API, re
 | Rota | Método | Descrição |
 |---|---|---|
 | `/api/audit/logs/` | **GET** | Histórico completo de auditoria para o sistema admin |
-| `/api/audit/logs/<id>/` | **GET** | Consultar estado capturado (Snapshot) no instante do evento |
+| `/api/audit/logs/<id---
 
----
+## Exemplos de Payloads e Respostas (JSON)
 
-## Exemplos de Payloads (JSON)
-
-### Auth - Registo (`POST /api/auth/register/`)
+### 1. Auth - Registo (`POST /api/auth/register/`)
+**Request Body:**
 ```json
 {
     "email": "teste@exemplo.com",
     "password": "MinhaSenhaForte123!",
+    "password_confirm": "MinhaSenhaForte123!",
     "full_name": "João Ninguém",
     "phone": "+244923000000"
 }
 ```
 
-### Auth - Login (`POST /api/auth/login/`)
+### 2. Auth - Login (`POST /api/auth/login/`)
+**Request Body:**
 ```json
 {
     "email": "teste@exemplo.com",
     "password": "senha"
 }
 ```
-
-### Auth - Recuperar Senha (Forgot Password) (`POST /api/auth/forgot-password/`)
+**Resposta (200 OK):**
 ```json
 {
-    "email": "teste@exemplo.com"
+    "access": "eyJ0eXAi...",
+    "refresh": "eyJ0eXAi...",
+    "user": {
+        "id": "uuid",
+        "email": "teste@exemplo.com",
+        "full_name": "João Ninguém"
+    }
 }
 ```
 
-### Auth - Concluir Recuperação (Reset Password) (`POST /api/auth/reset-password/`)
+### 3. Meu Perfil (`GET / PATCH /api/auth/me/`)
+**Request Body (PATCH - multipart/form-data):**
+- `full_name`: João Silva
+- `avatar`: `<Ficheiro de Imagem>`
+- `city`: Luanda
+
+**Resposta (200 OK):**
 ```json
 {
-    "token": "<token_recebido_no_email>",
-    "new_password": "NovaSenhaSegura123!"
+    "id": "6ad0b3ed-af82-4631-91a7-ba6b54a4980b",
+    "email": "user@example.com",
+    "full_name": "João Silva",
+    "avatar": "https://res.cloudinary.com/dm.../image/upload/v1/kwanzaconnect/avatars/avatar_uuid.jpg",
+    "is_verified": true,
+    "verification_status": "approved",
+    "city": "Luanda"
+}
+```
+> [!IMPORTANT]
+> O campo `avatar` agora retorna sempre um URL absoluto (Cloudinary ou SITE_URL), pronto para ser usado diretamente na tag `<img src="...">` do Frontend.
+
+### 4. KYC - Submissão (`POST /api/auth/kyc/submit/`)
+**Request Body (multipart/form-data):**
+- `doc_type`: `bi` (ou `passport`, `residence`)
+- `doc_number`: `000654321LA044`
+- `front_image`: `<Ficheiro>`
+- `back_image`: `<Ficheiro>`
+
+**Resposta (201 Created):**
+```json
+{
+    "id": "uuid",
+    "status": "pending",
+    "front_image": "https://res.cloudinary.com/.../kyc/kyc_front_uuid.jpg",
+    "back_image": "https://res.cloudinary.com/.../kyc/kyc_back_uuid.jpg",
+    "submitted_at": "2026-04-17T03:00:00Z"
 }
 ```
 
-### KYC - Submissão (`POST /api/auth/kyc/submit/`) - Via Form-Data
-```json
-{
-    "doc_type": "BI",
-    "doc_number": "000000000LA000",
-    "front_image": "<File>",
-    "back_image": "<File>"
-}
-```
-
-### Criar Oferta (`POST /api/offers/`)
+### 5. Criar Oferta (`POST /api/offers/`)
+**Request Body:**
 ```json
 {
     "give_currency_code": "AOA",
     "want_currency_code": "USD",
     "give_amount": "50000.00",
     "want_amount": "50.00",
-    "notes": "Entrega rápida no centro da cidade",
+    "notes": "Entrega rápida",
     "city": "Luanda"
 }
 ```
 
-### Aceitar Interesse (`POST /api/offers/interests/<interest_id>/accept/`)
-- **Resposta**: Retorna o `room_id` da sala de chat (nova ou existente).
-
-### Enviar Mensagem (`POST /api/chat/rooms/<room_id>/messages/`)
+### 6. Enviar Mensagem (`POST /api/chat/rooms/<room_id>/messages/`)
+**Request Body:**
 ```json
 {
-    "content": "Olá, ainda tens o valor disponível?",
+    "content": "Olá, ainda disponível?",
     "msg_type": "text",
-    "reply_to": "<optional_message_id_uuid>",
     "file": null
 }
 ```
-
-### Manifestar Interesse (`POST /api/offers/<offer_id>/interest/`)
+**Resposta (201 Created):**
 ```json
 {
-    "message": "Tenho interesse, podemos fechar negócio hoje?"
+    "id": "uuid",
+    "sender": {
+        "id": "uuid",
+        "full_name": "João",
+        "avatar": "https://..."
+    },
+    "content": "Olá, ainda disponível?",
+    "created_at": "2026-04-17T04:20:00Z"
 }
 ```
 
-### Atualizar Meu Perfil (`PATCH /api/auth/me/`)
-```json
-{
-    "full_name": "João Silva Alterado",
-    "phone": "+244900000000",
-    "city": "Luanda",
-    "bio": "Entusiasta de câmbios P2P",
-    "is_available": true,
-    "preferred_give_currency": "<uuid_aoa>",
-    "preferred_want_currency": "<uuid_usd>"
-}
-```
-
-### Alterar Senha (`POST /api/auth/me/change-password/`)
-```json
-{
-    "current_password": "SenhaAtual123!",
-    "new_password": "NovaSenhaSegura456!",
-    "confirm_password": "NovaSenhaSegura456!"
-}
-```
-
-### Avaliar Transação (`POST /api/transactions/<transaction_id>/review/`)
+### 7. Avaliar Transação (`POST /api/transactions/<transaction_id>/review/`)
+**Request Body:**
 ```json
 {
     "rating": 5,
-    "comment": "Negócio muito rápido e seguro. Recomendo!"
+    "comment": "Excelente vendedor!"
 }
 ```
-
-### Confirmar Transação (`POST /api/transactions/confirm/`)
+### 8. Confirmar Transação (`POST /api/transactions/confirm/`)
+**Request Body:**
 ```json
 {
     "offer": "<id_da_oferta>",
@@ -202,7 +212,8 @@ Este documento contém **todas** as rotas atuais ativas na KwanzaConnect API, re
 }
 ```
 
-### Atualizar Preferências Notificações (`PATCH /api/notifications/preferences/`)
+### 9. Atualizar Preferências Notificações (`PATCH /api/notifications/preferences/`)
+**Request Body:**
 ```json
 {
     "email_offers": true,
