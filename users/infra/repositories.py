@@ -121,8 +121,10 @@ class DjangoUserRepository(IUserRepository):
                     'last_seen': user_entity.last_seen,
                     'preferred_give_currency': user_entity.preferred_give_currency,
                     'preferred_want_currency': user_entity.preferred_want_currency,
+                    'avatar': user_entity.avatar if isinstance(user_entity.avatar, str) else None,
                 }
             )
+
             # Persistência e Hashing de senha (apenas se for uma nova senha raw fornecida)
             if user_entity.password and not user_entity.password.startswith(('pbkdf2_', 'argon2$', 'bcrypt$')):
                 django_user.set_password(user_entity.password)
@@ -141,8 +143,10 @@ class DjangoUserRepository(IUserRepository):
                     # No entanto, ImageField precisa de um File. 
                     # Uma alternativa comum é usar um CharField para o avatar se for sempre remoto.
                     django_user.avatar = cloud_url # O Django permite atribuir string a ImageField, ele guarda o caminho.
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"--- ERRO CLOUDINARY REPOSITORY (Avatar): {str(e)} ---")
+                    # Em produção deveríamos usar um logger. Aqui mostramos no terminal para debug.
+
             
             django_user.save()
 
@@ -207,20 +211,27 @@ class DjangoUserRepository(IUserRepository):
                 'reviewed_by_id': document.reviewed_by_id,
             }
         )
-        # Handle files with Cloudinary
+        # Handle files — either upload raw file objects or persist existing Cloudinary URLs
         def upload_field(field_name, prefix):
             field_val = getattr(document, field_name)
-            if field_val and not isinstance(field_val, str):
+            if not field_val:
+                return
+            if isinstance(field_val, str):
+                # Already a Cloudinary URL — persist directly
+                setattr(django_identity, field_name, field_val)
+            else:
+                # Raw file object — upload to Cloudinary
                 try:
-                    url = self.storage_service.upload(field_val.read(), f"{prefix}_{document.id}", folder="kyc")
+                    content = field_val.read() if hasattr(field_val, 'read') else field_val
+                    url = self.storage_service.upload(content, f"{prefix}_{document.id}", folder="kyc")
                     setattr(django_identity, field_name, url)
-                except Exception:
-                    pass
+                except Exception as e:
+                    print(f"--- ERRO CLOUDINARY (KYC {field_name}): {e} ---")
 
         upload_field('front_image', 'kyc_front')
         upload_field('back_image', 'kyc_back')
         upload_field('pdf_file', 'kyc_pdf')
-        
+
         django_identity.save()
 
 

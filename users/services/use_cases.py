@@ -278,7 +278,7 @@ class SubmitKYCUseCase:
             raise NotFound('Utilizador não encontrado.')
             
         if user.is_kyc_complete():
-            raise ValidationError('Os documentos já foram aprovados.')
+            raise ValidationError({'detail': 'Os documentos já foram aprovados e não podem ser reenviados.'})
 
         # Upload de fotos se presentes em doc_data
         if self.storage_service:
@@ -305,7 +305,13 @@ class SubmitKYCUseCase:
             new_doc = IdentityDocumentEntity(
                 id=uuid.uuid4(),
                 user_id=user_id,
-                **doc_data
+                doc_type=doc_data.get('doc_type', ''),
+                doc_number=doc_data.get('doc_number', ''),
+                doc_country=doc_data.get('doc_country', 'AO'),
+                status='pending',
+                front_image=doc_data.get('front_image'),
+                back_image=doc_data.get('back_image'),
+                pdf_file=doc_data.get('pdf_file'),
             )
             self.repository.save_kyc_document(new_doc)
 
