@@ -38,8 +38,10 @@ class DjangoChatRepository(IChatRepository):
             other_user=getattr(django_room, 'other_user_data', None),
             members=members,
             last_message=last_msg,
-            unread_count=getattr(django_room, 'unread_count_val', 0)
+            unread_count=getattr(django_room, 'unread_count_val', 0),
+            interest_id=getattr(django_room, 'interest_id_val', None)
         )
+
 
 
     def _member_to_entity(self, django_member: DjangoRoomMember) -> RoomMemberEntity:
@@ -62,6 +64,14 @@ class DjangoChatRepository(IChatRepository):
 
 
     def _message_to_entity(self, django_message: DjangoMessage) -> MessageEntity:
+        sender_data = None
+        if hasattr(django_message, 'sender') and django_message.sender:
+            sender_data = {
+                "id": str(django_message.sender.id),
+                "full_name": django_message.sender.full_name,
+                "avatar": django_message.sender.avatar.url if django_message.sender.avatar else None,
+            }
+        
         return MessageEntity(
             id=django_message.id,
             room_id=django_message.room_id,
@@ -77,8 +87,10 @@ class DjangoChatRepository(IChatRepository):
             created_at=django_message.created_at,
             edited_at=django_message.edited_at,
             room=django_message.room_id,
-            reply_to=django_message.reply_to_id
+            reply_to=django_message.reply_to_id,
+            sender=sender_data
         )
+
 
 
     def save_room(self, room: RoomEntity) -> RoomEntity:
@@ -97,8 +109,10 @@ class DjangoChatRepository(IChatRepository):
         try:
             r = DjangoRoom.objects.get(id=room_id)
             r.members_list = list(DjangoRoomMember.objects.filter(room=r).select_related('user'))
-            r.last_msg_obj = DjangoMessage.objects.filter(room=r).order_by('-created_at').first()
+            r.last_msg_obj = DjangoMessage.objects.filter(room=r).select_related('sender').order_by('-created_at').first()
+            r.interest_id_val = r.interests.values_list('id', flat=True).first()
             return self._room_to_entity(r)
+
         except DjangoRoom.DoesNotExist:
             return None
 
@@ -111,8 +125,10 @@ class DjangoChatRepository(IChatRepository):
         for r in rooms:
             # Enriquecimento básico
             r.members_list = list(DjangoRoomMember.objects.filter(room=r).select_related('user'))
-            r.last_msg_obj = DjangoMessage.objects.filter(room=r).order_by('-created_at').first()
+            r.last_msg_obj = DjangoMessage.objects.filter(room=r).select_related('sender').order_by('-created_at').first()
             r.unread_count_val = self.get_unread_count_for_user(r.id, user_id)
+            r.interest_id_val = r.interests.values_list('id', flat=True).first()
+
 
             # Identifica o outro membro para resumo rápido
             other_member = next((m for m in r.members_list if m.user_id != user_id), None)
@@ -163,7 +179,10 @@ class DjangoChatRepository(IChatRepository):
                 'is_edited': message.is_edited,
             }
         )
+        # Refresh to ensure auto_now fields are loaded
+        django_message.refresh_from_db()
         return self._message_to_entity(django_message)
+
 
     def get_message_by_id(self, message_id: uuid.UUID) -> Optional[MessageEntity]:
         try:

@@ -31,6 +31,13 @@ class RegisterUserUseCase:
         if self.repository.exists_by_email(email):
             raise ValidationError({'email': 'Este email já está registado.'})
 
+        # Filtragem de kwargs para evitar TypeError na UserEntity
+        valid_user_fields = {
+            'phone', 'country_code', 'city', 'address', 'occupation', 
+            'bio', 'avatar', 'preferred_give_currency', 'preferred_want_currency'
+        }
+        user_kwargs = {k: v for k, v in kwargs.items() if k in valid_user_fields}
+
         # Criação da entidade
         user_id = uuid.uuid4()
         user = UserEntity(
@@ -39,7 +46,7 @@ class RegisterUserUseCase:
             full_name=full_name,
             password=password,
             is_active=True,
-            **kwargs
+            **user_kwargs
         )
         
         # O hashing de senha deve ser tratado ou pelo repositório ou por um serviço de segurança.
@@ -61,9 +68,13 @@ class RegisterUserUseCase:
             back_url  = ""
             if self.storage_service:
                 if front_image:
-                    front_url = self.storage_service.upload(front_image, f"kyc-{user.id}-front", folder="kyc")
+                    # Garantir leitura dos bytes se for um objeto de arquivo
+                    img_content = front_image.read() if hasattr(front_image, 'read') else front_image
+                    front_url = self.storage_service.upload(img_content, f"kyc-{user.id}-front", folder="kyc")
                 if back_image:
-                    back_url = self.storage_service.upload(back_image, f"kyc-{user.id}-back", folder="kyc")
+                    # Garantir leitura dos bytes se for um objeto de arquivo
+                    img_content = back_image.read() if hasattr(back_image, 'read') else back_image
+                    back_url = self.storage_service.upload(img_content, f"kyc-{user.id}-back", folder="kyc")
 
             doc = IdentityDocumentEntity(
                 id=uuid.uuid4(),

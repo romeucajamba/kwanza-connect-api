@@ -235,10 +235,11 @@ class OfferInterest(models.Model):
     )
 
     # Referência à sala criada após aceitação
-    room       = models.OneToOneField(
+    room       = models.ForeignKey(
         'chat.Room', null=True, blank=True,
-        on_delete=models.SET_NULL, related_name='origin_interest'
+        on_delete=models.SET_NULL, related_name='interests'
     )
+
 
     created_at   = models.DateTimeField(auto_now_add=True)
     responded_at = models.DateTimeField(null=True, blank=True)
@@ -264,8 +265,8 @@ class OfferInterest(models.Model):
         4. Regista evento na sala
         5. Dispara notificações
         """
-        from apps.chat.models import Room, RoomMember, RoomEvent
-        from apps.notifications.models import Notification
+        from chat.models import Room, RoomMember, RoomEvent
+        from notifications.models import Notification
 
         # Validações
         if self.status != 'pending':
@@ -273,14 +274,27 @@ class OfferInterest(models.Model):
         if accepted_by != self.offer.owner:
             raise ValidationError('Apenas o dono da oferta pode aceitar.')
 
-        # Cria sala de chat
-        room = Room.objects.create(
-            offer=self.offer,
-            room_type='offer',
-            status='active',
-        )
-        RoomMember.objects.create(room=room, user=self.offer.owner, is_admin=True)
-        RoomMember.objects.create(room=room, user=self.buyer)
+        # Procura sala existente entre dono e comprador
+        existing_room = Room.objects.filter(
+            members__user=self.offer.owner
+        ).filter(
+            members__user=self.buyer
+        ).exclude(status='closed').distinct().first()
+
+        if existing_room:
+            room = existing_room
+            room.offer = self.offer
+            room.save(update_fields=['offer'])
+        else:
+            # Cria nova sala de chat
+            room = Room.objects.create(
+                offer=self.offer,
+                room_type='offer',
+                status='active',
+            )
+            RoomMember.objects.create(room=room, user=self.offer.owner, is_admin=True)
+            RoomMember.objects.create(room=room, user=self.buyer)
+
 
         RoomEvent.objects.create(
             room=room,
@@ -321,7 +335,8 @@ class OfferInterest(models.Model):
         if rejected_by != self.offer.owner:
             raise ValidationError('Apenas o dono da oferta pode rejeitar.')
 
-        from apps.notifications.models import Notification
+        from notifications.models import Notification
+
 
         self.status       = 'rejected'
         self.responded_at = timezone.now()

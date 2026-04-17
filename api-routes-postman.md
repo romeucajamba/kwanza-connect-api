@@ -64,6 +64,7 @@ Este documento contém **todas** as rotas atuais ativas na KwanzaConnect API, re
 | `/api/transactions/` | **GET** | Listar o meu histórico de transações |
 | `/api/transactions/<transaction_id>/` | **GET** | Visualizar detalhe e faturas de uma transação |
 | `/api/transactions/confirm/` | **POST** | Finalizar e selar um negócio (Match com Contraparte) |
+| `/api/transactions/reviews/<user_id>/` | **GET** | Listar avaliações públicas de um utilizador específico |
 | `/api/transactions/<transaction_id>/review/` | **POST** | Avaliar e comentar a postura da contraparte pós-negócio |
 
 ## 6. Notificações (`/api/notifications/`)
@@ -77,7 +78,7 @@ Este documento contém **todas** as rotas atuais ativas na KwanzaConnect API, re
 | `/api/notifications/preferences/` | **GET** / **PATCH**| Consultar e atualizar preferências (Emails, Push) |
 
 ## 7. Logs de Auditoria (`/api/audit/logs/`)
-*(Apenas para Utilizadores Autorizados)*
+*(Apenas para Utilizadores Autorizados - X-API-KEY opcional dependendo do ambiente)*
 
 | Rota | Método | Descrição |
 |---|---|---|
@@ -95,6 +96,14 @@ Este documento contém **todas** as rotas atuais ativas na KwanzaConnect API, re
     "password": "MinhaSenhaForte123!",
     "full_name": "João Ninguém",
     "phone": "+244923000000"
+}
+```
+
+### Auth - Login (`POST /api/auth/login/`)
+```json
+{
+    "email": "teste@exemplo.com",
+    "password": "senha"
 }
 ```
 
@@ -129,7 +138,59 @@ Este documento contém **todas** as rotas atuais ativas na KwanzaConnect API, re
     "give_currency_code": "AOA",
     "want_currency_code": "USD",
     "give_amount": "50000.00",
-    "want_amount": "50.00"
+    "want_amount": "50.00",
+    "notes": "Entrega rápida no centro da cidade",
+    "city": "Luanda"
+}
+```
+
+### Aceitar Interesse (`POST /api/offers/interests/<interest_id>/accept/`)
+- **Resposta**: Retorna o `room_id` da sala de chat (nova ou existente).
+
+### Enviar Mensagem (`POST /api/chat/rooms/<room_id>/messages/`)
+```json
+{
+    "content": "Olá, ainda tens o valor disponível?",
+    "msg_type": "text",
+    "reply_to": "<optional_message_id_uuid>",
+    "file": null
+}
+```
+
+### Manifestar Interesse (`POST /api/offers/<offer_id>/interest/`)
+```json
+{
+    "message": "Tenho interesse, podemos fechar negócio hoje?"
+}
+```
+
+### Atualizar Meu Perfil (`PATCH /api/auth/me/`)
+```json
+{
+    "full_name": "João Silva Alterado",
+    "phone": "+244900000000",
+    "city": "Luanda",
+    "bio": "Entusiasta de câmbios P2P",
+    "is_available": true,
+    "preferred_give_currency": "<uuid_aoa>",
+    "preferred_want_currency": "<uuid_usd>"
+}
+```
+
+### Alterar Senha (`POST /api/auth/me/change-password/`)
+```json
+{
+    "current_password": "SenhaAtual123!",
+    "new_password": "NovaSenhaSegura456!",
+    "confirm_password": "NovaSenhaSegura456!"
+}
+```
+
+### Avaliar Transação (`POST /api/transactions/<transaction_id>/review/`)
+```json
+{
+    "rating": 5,
+    "comment": "Negócio muito rápido e seguro. Recomendo!"
 }
 ```
 
@@ -148,3 +209,5 @@ Este documento contém **todas** as rotas atuais ativas na KwanzaConnect API, re
     "push_messages": false
 }
 ```
+
+

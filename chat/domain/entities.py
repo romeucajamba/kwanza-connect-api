@@ -17,6 +17,8 @@ class RoomEntity:
     members:      List['RoomMemberEntity'] = field(default_factory=list)
     last_message: Optional['MessageEntity'] = None
     unread_count: int = 0
+    interest_id:  Optional[uuid.UUID] = None
+
 
     
     def is_active(self) -> bool:
@@ -54,6 +56,8 @@ class MessageEntity:
     # Metadata para Serializer (Preenchido pelo Repositório)
     room:     Optional[uuid.UUID] = None
     reply_to: Optional[uuid.UUID] = None
+    sender:   Optional[Dict[str, Any]] = None
+
 
 
 @dataclass
