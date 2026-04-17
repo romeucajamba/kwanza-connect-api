@@ -80,11 +80,9 @@ class ResetPasswordSerializer(serializers.Serializer):
 
 
 # ─────────────────────────────────────────────
-#  Perfil público (sem dados sensíveis)
-# ─────────────────────────────────────────────
-
 class PublicUserSerializer(serializers.ModelSerializer):
     """Perfil público — exposto a outros utilizadores."""
+    avatar = serializers.SerializerMethodField()
     class Meta:
         model  = User
         fields = [
@@ -95,9 +93,23 @@ class PublicUserSerializer(serializers.ModelSerializer):
         ]
         read_only_fields = fields
 
+    def get_avatar(self, obj):
+        # Suporta tanto Model (obj.avatar.url) como Entity (obj.avatar como string)
+        avatar = getattr(obj, 'avatar', None)
+        if not avatar:
+            return None
+        if isinstance(avatar, str):
+            return avatar
+        try:
+            return avatar.url
+        except Exception:
+            return None
+
+
 
 class UserProfileSerializer(serializers.ModelSerializer):
     """Perfil completo — apenas para o próprio utilizador."""
+    avatar = serializers.SerializerMethodField()
     class Meta:
         model  = User
         fields = [
@@ -111,6 +123,18 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'id', 'email', 'is_active', 'is_verified',
             'verification_status', 'last_seen', 'date_joined',
         ]
+
+    def get_avatar(self, obj):
+        avatar = getattr(obj, 'avatar', None)
+        if not avatar:
+            return None
+        if isinstance(avatar, str):
+            return avatar
+        try:
+            return avatar.url
+        except Exception:
+            return None
+
 
 
 class UpdateProfileSerializer(serializers.ModelSerializer):
@@ -129,6 +153,10 @@ class UpdateProfileSerializer(serializers.ModelSerializer):
 # ─────────────────────────────────────────────
 
 class IdentityDocumentSerializer(serializers.ModelSerializer):
+    front_image = serializers.SerializerMethodField()
+    back_image  = serializers.SerializerMethodField()
+    pdf_file    = serializers.SerializerMethodField()
+
     class Meta:
         model  = IdentityDocument
         fields = [
@@ -137,6 +165,25 @@ class IdentityDocumentSerializer(serializers.ModelSerializer):
             'status', 'rejection_reason', 'submitted_at',
         ]
         read_only_fields = ['id', 'status', 'rejection_reason', 'submitted_at']
+
+    def _get_url(self, file_field):
+        if not file_field:
+            return None
+        if isinstance(file_field, str):
+            return file_field
+        try:
+            return file_field.url
+        except Exception:
+            return None
+
+    def get_front_image(self, obj):
+        return self._get_url(getattr(obj, 'front_image', None))
+
+    def get_back_image(self, obj):
+        return self._get_url(getattr(obj, 'back_image', None))
+
+    def get_pdf_file(self, obj):
+        return self._get_url(getattr(obj, 'pdf_file', None))
 
     def validate(self, data):
         has_images = data.get('front_image') and data.get('back_image')

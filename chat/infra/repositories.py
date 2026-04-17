@@ -280,14 +280,21 @@ class DjangoChatRepository(IChatRepository):
         
         try:
             url = file_field.url
+            # Se for um link absoluto mas o Django prefixou com /media/ (ex: /media/https://...)
+            # Removemos o prefixo para retornar o URL limpo da nuvem
+            from django.conf import settings
+            media_url = getattr(settings, 'MEDIA_URL', '/media/')
+            if url.startswith(media_url) and ('http://' in url or 'https://' in url):
+                url = url.replace(media_url, '', 1)
+
             # Se já for um URL absoluto (Cloudinary), retorna
             if url.startswith(('http://', 'https://')):
                 return url
                 
             # Fallback para local
-            from django.conf import settings
             base_url = getattr(settings, 'SITE_URL', 'http://localhost:8000')
             return f"{base_url.rstrip('/')}{url}"
-        except ValueError:
+        except Exception:
             return None
+
 
